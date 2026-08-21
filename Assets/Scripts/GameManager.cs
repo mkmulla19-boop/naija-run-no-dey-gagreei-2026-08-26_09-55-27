@@ -36,8 +36,8 @@ namespace Olomu.Systems
             if (SaveSystem != null && Player != null && Survival != null && Inventory != null)
                 loaded = SaveSystem.Load(Player.transform, Survival, Inventory);
 
-            var opening = FindFirstObjectByType<OpeningSequence>();
-            if (opening != null) opening.SequenceFinished += () => StartCoroutine(AutosaveLoop());
+            var director = FindFirstObjectByType<CinematicDirector>();
+            if (director != null) director.Finished += () => StartCoroutine(AutosaveLoop());
             else StartCoroutine(AutosaveLoop());
 
             Debug.Log(loaded ? "Olomu: save loaded." : "Olomu: new game.");

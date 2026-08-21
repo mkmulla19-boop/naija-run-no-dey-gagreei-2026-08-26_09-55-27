@@ -9,6 +9,7 @@ namespace Olomu.Systems
         [Header("Bars")]
         public Image hungerFill;
         public Image thirstFill;
+        public Image healthFill;
 
         [Header("Text")]
         public Text inventoryText;
@@ -29,11 +30,20 @@ namespace Olomu.Systems
         public Button saveButton;
         public Text statsText;
 
+        public GameObject[] cinematicHidden;
+
+        public void SetCinematicMode(bool on)
+        {
+            foreach (var go in cinematicHidden)
+                if (go != null) go.SetActive(!on);
+        }
+
         private ThirdPersonController player;
         private SurvivalNeeds survival;
         private Inventory inventory;
         private Interactor interactor;
         private SaveLoad saveLoad;
+        private Health health;
         private float toastTimer;
         private bool dead;
 
@@ -45,6 +55,7 @@ namespace Olomu.Systems
                 survival = player.GetComponent<SurvivalNeeds>();
                 inventory = player.GetComponent<Inventory>();
                 interactor = player.GetComponent<Interactor>();
+                health = player.GetComponent<Health>();
             }
             saveLoad = FindFirstObjectByType<SaveLoad>();
 
@@ -59,6 +70,11 @@ namespace Olomu.Systems
             pausePanel.SetActive(false);
 
             if (survival != null) survival.PlayerDied += OnPlayerDied;
+            if (health != null)
+            {
+                health.Changed += _ => { };
+                health.Died += OnPlayerDied;
+            }
             if (inventory != null) inventory.InventoryChanged += RefreshInventory;
             RefreshInventory();
         }
@@ -71,8 +87,20 @@ namespace Olomu.Systems
                 thirstFill.fillAmount = survival.Thirst / survival.maxThirst;
             }
 
+            if (healthFill != null && health != null)
+                healthFill.fillAmount = health.Current / health.maxHealth;
+
             if (interactor != null)
             {
+                if (interactor.CurrentEnemy != null)
+                {
+                    promptText.text = "A raider blocks your path!";
+                    interactLabel.text = "ATTACK";
+                    interactLabel.color = new Color(1f, 0.35f, 0.25f);
+                    interactButton.interactable = true;
+                    return;
+                }
+                interactLabel.color = Color.white;
                 if (interactor.CurrentTarget != null)
                 {
                     promptText.text = "Gather " + interactor.CurrentTarget.DisplayName;
@@ -99,6 +127,13 @@ namespace Olomu.Systems
         private void OnInteract()
         {
             if (interactor == null || inventory == null) return;
+
+            if (interactor.CurrentEnemy != null)
+            {
+                bool killed = interactor.CurrentEnemy.TakeDamage(34f);
+                ShowToast(killed ? "Raider defeated!" : "Strike!");
+                return;
+            }
 
             if (interactor.CurrentTarget != null && interactor.TryGather(inventory))
             {
@@ -174,6 +209,7 @@ namespace Olomu.Systems
             yield return new WaitForSeconds(3.5f);
             if (player != null) player.Teleport(new Vector3(0f, 1.2f, 6f));
             if (survival != null) survival.Revive();
+            if (health != null) health.ResetFull();
             dead = false;
         }
 

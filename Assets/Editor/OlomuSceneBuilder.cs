@@ -50,8 +50,33 @@ public static class OlomuSceneBuilder
         BuildVillage();
         BuildWilderness();
         var player = BuildPlayer();
+        var storyActors = BuildStoryActors();
+        var father = storyActors.Item1;
+        var raiders = storyActors.Item2;
         BuildNPCs();
+        BuildEnemies();
+        var audio = BuildAudio();
         var hud = BuildHUD(player);
+
+        var cineCamGo = new GameObject("CineCamera");
+        var cineCam = cineCamGo.AddComponent<Camera>();
+        cineCam.fieldOfView = 55f;
+        cineCam.farClipPlane = 500f;
+        cineCamGo.tag = "Untagged";
+        cineCam.depth = 10f;
+
+        var focusGo = new GameObject("VillageFocus");
+        focusGo.transform.position = new Vector3(0f, 2.5f, 0f);
+
+        var fireT = GameObject.Find("Campfire").transform;
+
+        var playerCtl = player.GetComponent<ThirdPersonController>();
+        var gameCam = playerCtl.GetComponentInChildren<Camera>(true);
+        if (gameCam != null) gameCam.gameObject.SetActive(false);
+
+        var director = BuildCinematicUI(cineCam, player, playerCtl,
+            hud.GetComponent<MobileHUD>(), audio,
+            father, raiders, focusGo.transform, fireT);
 
         var saveLoadGo = new GameObject("SaveLoad");
         saveLoadGo.AddComponent<SaveLoad>();
@@ -385,6 +410,7 @@ public static class OlomuSceneBuilder
         player.AddComponent<SurvivalNeeds>();
         player.AddComponent<Inventory>();
         player.AddComponent<Interactor>();
+        player.AddComponent<Health>();
 
         var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(FbxPath);
         if (fbx != null)
@@ -446,6 +472,210 @@ public static class OlomuSceneBuilder
             npc.GetComponent<CharacterController>().height = 2f;
             npc.AddComponent<SimpleNPC>();
         }
+    }
+
+    static System.Tuple<CineActor, CineActor[]> BuildStoryActors()
+    {
+        var fatherGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        fatherGo.name = "Father";
+        fatherGo.transform.position = new Vector3(-4f, 1.05f, 11.5f);
+        fatherGo.transform.localScale = new Vector3(0.85f, 1.1f, 0.85f);
+        fatherGo.GetComponent<Renderer>().sharedMaterial = Mat(new Color(0.35f, 0.24f, 0.15f));
+        var fcc = fatherGo.AddComponent<CharacterController>();
+        fcc.height = 2.1f;
+        var father = fatherGo.AddComponent<CineActor>();
+        father.speed = 2.4f;
+        father.waypoints = new[]
+        {
+            new Vector3(-2.5f, 1.05f, 10f),
+            new Vector3(0.8f, 1.05f, 9.2f)
+        };
+
+        var raiders = new CineActor[5];
+        Vector3[][] paths =
+        {
+            new[] { new Vector3(-14f, 1.05f, -12f), new Vector3(2f, 1.05f, 2f), new Vector3(16f, 1.05f, 10f) },
+            new[] { new Vector3(16f, 1.05f, -10f), new Vector3(0f, 1.05f, -1f), new Vector3(-14f, 1.05f, 9f) },
+            new[] { new Vector3(-13f, 1.05f, 6f), new Vector3(3f, 1.05f, 4f), new Vector3(15f, 1.05f, -6f) },
+            new[] { new Vector3(13f, 1.05f, 7f), new Vector3(-2f, 1.05f, 3f), new Vector3(-16f, 1.05f, -8f) },
+            new[] { new Vector3(4f, 1.05f, -14f), new Vector3(1f, 1.05f, 1f), new Vector3(-12f, 1.05f, 12f) }
+        };
+        var raidColors = new[]
+        {
+            new Color(0.25f, 0.18f, 0.18f), new Color(0.3f, 0.22f, 0.15f),
+            new Color(0.2f, 0.2f, 0.22f), new Color(0.28f, 0.18f, 0.2f),
+            new Color(0.22f, 0.25f, 0.18f)
+        };
+        for (int i = 0; i < raiders.Length; i++)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            go.name = "Raider" + i;
+            go.transform.position = paths[i][0];
+            go.transform.localScale = new Vector3(0.85f, 1.08f, 0.85f);
+            go.GetComponent<Renderer>().sharedMaterial = Mat(raidColors[i]);
+            var cc = go.AddComponent<CharacterController>();
+            cc.height = 2.1f;
+            var actor = go.AddComponent<CineActor>();
+            actor.speed = 4.6f;
+            actor.waypoints = new[] { paths[i][1], paths[i][2] };
+            raiders[i] = actor;
+        }
+
+        return new System.Tuple<CineActor, CineActor[]>(father, raiders);
+    }
+
+    static void BuildEnemies()
+    {
+        var raidMats = new[]
+        {
+            new Color(0.42f, 0.2f, 0.18f), new Color(0.36f, 0.24f, 0.14f), new Color(0.3f, 0.26f, 0.22f)
+        };
+        Vector3[] raidSpots =
+        {
+            new Vector3(-6f, 1.05f, -38f),
+            new Vector3(8.5f, 1.05f, -44f),
+            new Vector3(15f, 1.05f, -30f)
+        };
+        for (int i = 0; i < raidSpots.Length; i++)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            go.name = "RaiderPatrol" + i;
+            go.transform.position = raidSpots[i];
+            go.transform.localScale = new Vector3(0.85f, 1.1f, 0.85f);
+            go.GetComponent<Renderer>().sharedMaterial = Mat(raidMats[i]);
+            var cc = go.AddComponent<CharacterController>();
+            cc.height = 2.1f;
+            var ai = go.AddComponent<EnemyAI>();
+            ai.health = 100f;
+            ai.attackDamage = 12f;
+            ai.chaseSpeed = 5.9f;
+            ai.detectRadius = 10f;
+            ai.patrolRadius = 11f;
+            ai.lootItem = "hide";
+        }
+
+        var dogMat = Mat(new Color(0.23f, 0.19f, 0.16f));
+        Vector3[] dogSpots =
+        {
+            new Vector3(34f, 1.02f, 26f),
+            new Vector3(-40f, 1.02f, -20f),
+            new Vector3(28f, 1.02f, -46f),
+            new Vector3(-32f, 1.02f, 38f)
+        };
+        foreach (var spot in dogSpots)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            go.name = "WildDog";
+            go.transform.position = spot;
+            go.transform.localScale = new Vector3(0.55f, 0.5f, 0.95f);
+            go.GetComponent<Renderer>().sharedMaterial = dogMat;
+            var cc = go.AddComponent<CharacterController>();
+            cc.height = 1.1f;
+            cc.radius = 0.35f;
+            var ai = go.AddComponent<EnemyAI>();
+            ai.health = 55f;
+            ai.attackDamage = 9f;
+            ai.attackCooldown = 0.85f;
+            ai.chaseSpeed = 7.1f;
+            ai.walkSpeed = 2.4f;
+            ai.detectRadius = 12f;
+            ai.patrolRadius = 14f;
+            ai.lootItem = "meat";
+            ai.lootAmount = 2;
+        }
+    }
+
+    static AudioDirector BuildAudio()
+    {
+        var go = new GameObject("AudioDirector");
+        var ad = go.AddComponent<AudioDirector>();
+        ad.music = go.AddComponent<AudioSource>();
+        ad.ambience = go.AddComponent<AudioSource>();
+        ad.sfx = go.AddComponent<AudioSource>();
+        ad.bed = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/olomu_bed.wav");
+        ad.tensionHit = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/tension_hit.wav");
+        ad.morningAmbience = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/morning_ambience.wav");
+        return ad;
+    }
+
+    static CinematicDirector BuildCinematicUI(Camera cineCam, GameObject player,
+        ThirdPersonController playerCtl, MobileHUD hud, AudioDirector audio,
+        CineActor father, CineActor[] raiders, Transform focus, Transform campfire)
+    {
+        Sprite rrect = LoadSprite(RoundRectPng);
+
+        var blackGo = new GameObject("BlackOverlay");
+        blackGo.transform.SetParent(hud.transform, false);
+        var blackRect = blackGo.AddComponent<RectTransform>();
+        blackRect.anchorMin = Vector2.zero;
+        blackRect.anchorMax = Vector2.one;
+        blackRect.offsetMin = Vector2.zero;
+        blackRect.offsetMax = Vector2.zero;
+        var blackImg = blackGo.AddComponent<Image>();
+        blackImg.color = Color.black;
+        blackImg.raycastTarget = false;
+
+        var letterTopGo = new GameObject("LetterTop");
+        letterTopGo.transform.SetParent(hud.transform, false);
+        var ltRect = letterTopGo.AddComponent<RectTransform>();
+        ltRect.anchorMin = new Vector2(0, 1);
+        ltRect.anchorMax = new Vector2(1, 1);
+        ltRect.pivot = new Vector2(0.5f, 1f);
+        var ltImg = letterTopGo.AddComponent<Image>();
+        ltImg.color = Color.black;
+        ltImg.raycastTarget = false;
+
+        var letterBotGo = new GameObject("LetterBot");
+        letterBotGo.transform.SetParent(hud.transform, false);
+        var lbRect = letterBotGo.AddComponent<RectTransform>();
+        lbRect.anchorMin = new Vector2(0, 0);
+        lbRect.anchorMax = new Vector2(1, 0);
+        lbRect.pivot = new Vector2(0.5f, 0f);
+        var lbImg = letterBotGo.AddComponent<Image>();
+        lbImg.color = Color.black;
+        lbImg.raycastTarget = false;
+
+        var titleStudio = MakeText(blackGo.transform, "TitleStudio", "", 30,
+            new Color(0.85f, 0.78f, 0.62f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            new Vector2(-600, -40), new Vector2(600, 20), TextAnchor.LowerCenter);
+        var titleMain = MakeText(blackGo.transform, "TitleMain", "", 120,
+            new Color(0.95f, 0.78f, 0.32f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            new Vector2(-500, -220), new Vector2(500, 60), TextAnchor.UpperCenter);
+        titleMain.fontStyle = FontStyle.Bold;
+
+        var subtitle = MakeText(hud.transform, "Subtitle", "", 36, Color.white,
+            new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-700, 210), new Vector2(700, 280), TextAnchor.LowerCenter);
+        subtitle.horizontalOverflow = HorizontalWrapMode.Wrap;
+        subtitle.fontStyle = FontStyle.Italic;
+
+        var skipBtn = MakeButton(hud.transform, "SkipButton", rrect, new Color(0, 0, 0, 0.55f),
+            new Vector2(1, 1), new Vector2(170, 70), "SKIP", 28, out _);
+        skipBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(-110, -50);
+
+        var director = hud.gameObject.AddComponent<CinematicDirector>();
+        director.cineCam = cineCam;
+        director.villageFocus = focus;
+        director.campfire = campfire;
+        director.playerT = player.transform;
+        director.playerController = playerCtl;
+        director.father = father;
+        director.raiders = raiders;
+        director.titleStudio = titleStudio;
+        director.titleMain = titleMain;
+        director.subtitle = subtitle;
+        director.blackOverlay = blackImg;
+        director.letterTop = ltRect;
+        director.letterBot = lbRect;
+        director.skipButton = skipBtn;
+        director.audioDirector = audio;
+        director.hud = hud;
+
+        hud.cinematicHidden = new GameObject[]
+        {
+            skipBtn.gameObject
+        };
+
+        return director;
     }
 
     static Text MakeText(Transform parent, string name, string content, int size, Color color,
@@ -558,6 +788,20 @@ public static class OlomuSceneBuilder
         joystick.knob = knobImg.rectTransform;
         joystick.radius = 130f;
 
+        var healthBg = MakeImage(canvasGo.transform, "HealthBg", rrect, new Color(0, 0, 0, 0.55f), new Vector2(0, 1), new Vector2(380, 40));
+        healthBg.GetComponent<RectTransform>().anchoredPosition = new Vector2(210, -134);
+        var healthFill = MakeImage(canvasGo.transform, "HealthFill", rrect, new Color(0.85f, 0.18f, 0.15f), new Vector2(0, 1), new Vector2(360, 28));
+        healthFill.type = Image.Type.Filled;
+        healthFill.fillMethod = Image.FillMethod.Horizontal;
+        healthFill.rectTransform.SetParent(healthBg.transform, false);
+        healthFill.rectTransform.anchorMin = new Vector2(0, 0.5f);
+        healthFill.rectTransform.anchorMax = new Vector2(0, 0.5f);
+        healthFill.rectTransform.pivot = new Vector2(0, 0.5f);
+        healthFill.GetComponent<RectTransform>().anchoredPosition = new Vector2(10, 0);
+        healthFill.rectTransform.sizeDelta = new Vector2(360, 28);
+        healthFill.fillAmount = 1f;
+        MakeText(healthBg.transform, "HealthLabel", "HEALTH", 20, Color.white, new Vector2(0, 0), new Vector2(1, 1), new Vector2(12, 0), new Vector2(-12, 0), TextAnchor.MiddleLeft);
+
         var hungerBg = MakeImage(canvasGo.transform, "HungerBg", rrect, new Color(0, 0, 0, 0.55f), new Vector2(0, 1), new Vector2(380, 40));
         hungerBg.GetComponent<RectTransform>().anchoredPosition = new Vector2(210, -34);
         var hungerFill = MakeImage(canvasGo.transform, "HungerFill", rrect, new Color(0.95f, 0.55f, 0.15f), new Vector2(0, 1), new Vector2(360, 28));
@@ -620,28 +864,10 @@ public static class OlomuSceneBuilder
         var saveBtn = MakeButton(pausePanel.transform, "SaveButton", rrect, new Color(0.25f, 0.45f, 0.7f), new Vector2(0.5f, 0.5f), new Vector2(340, 84), "SAVE GAME", 32, out _);
         saveBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -230);
 
-        var openingPanel = new GameObject("OpeningPanel");
-        openingPanel.transform.SetParent(canvasGo.transform, false);
-        var opRect = openingPanel.AddComponent<RectTransform>();
-        opRect.anchorMin = Vector2.zero;
-        opRect.anchorMax = Vector2.one;
-        opRect.offsetMin = Vector2.zero;
-        opRect.offsetMax = Vector2.zero;
-        var opImg = openingPanel.AddComponent<Image>();
-        opImg.color = Color.black;
-        var cg = openingPanel.AddComponent<CanvasGroup>();
-        MakeText(openingPanel.transform, "GameTitle", "OLOMU SURVIVAL", 54, new Color(0.95f, 0.8f, 0.4f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-500, 280), new Vector2(500, 360), TextAnchor.MiddleCenter);
-        var lineText = MakeText(openingPanel.transform, "Line", "", 40, Color.white, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-700, -80), new Vector2(700, 120), TextAnchor.UpperCenter);
-        lineText.horizontalOverflow = HorizontalWrapMode.Wrap;
-        var hintText = MakeText(openingPanel.transform, "Hint", "tap to continue", 24, new Color(1, 1, 1, 0.5f), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-300, 60), new Vector2(300, 110), TextAnchor.MiddleCenter);
-        var opening = openingPanel.AddComponent<OpeningSequence>();
-        opening.panel = cg;
-        opening.lineText = lineText;
-        opening.hint = hintText;
-
         var hud = canvasGo.AddComponent<MobileHUD>();
         hud.hungerFill = hungerFill;
         hud.thirstFill = thirstFill;
+        hud.healthFill = healthFill;
         hud.inventoryText = invText;
         hud.promptText = promptText;
         hud.toastText = toastText;

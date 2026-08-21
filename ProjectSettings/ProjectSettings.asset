@@ -12,7 +12,7 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: Olomu
+  companyName: Mkmulla Game Studio
   productName: Olomu Survival
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
@@ -362,7 +362,8 @@ PlayerSettings:
       m_Height: 36
       m_Kind: 1
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 2a78336850a30e8448e2efba45822ed6, type: 3}
       m_Width: 192
       m_Height: 192
       m_Kind: 0

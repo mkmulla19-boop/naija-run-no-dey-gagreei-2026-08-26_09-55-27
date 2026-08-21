@@ -39,6 +39,19 @@ namespace Olomu.Systems
 
         public bool IsRunning { get; private set; }
         public bool ControlsEnabled = true;
+        public bool CinematicControl;
+
+        private Vector2 cineInput;
+
+        public void SetCinematicInput(Vector2 dir) => cineInput = dir;
+
+        public void SetYaw(float yaw)
+        {
+            targetYaw = yaw;
+            transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        }
+
+        public float CurrentYaw => transform.eulerAngles.y;
 
         private static readonly int AnimState = Animator.StringToHash("AnimState");
         private static readonly int AttackTrigger = Animator.StringToHash("Attack");
@@ -79,7 +92,7 @@ namespace Olomu.Systems
 
         private void HandleLookTouches()
         {
-            if (!ControlsEnabled) return;
+            if (!ControlsEnabled || CinematicControl) return;
 
             for (int i = 0; i < Input.touchCount; i++)
             {
@@ -135,7 +148,7 @@ namespace Olomu.Systems
             bool grounded = cc.isGrounded;
             if (grounded && verticalVel < 0f) verticalVel = -1.5f;
 
-            if (jumpQueued && grounded && ControlsEnabled)
+            if (jumpQueued && grounded && ControlsEnabled && !CinematicControl)
             {
                 verticalVel = jumpVelocity;
             }
@@ -143,7 +156,9 @@ namespace Olomu.Systems
 
             verticalVel -= gravity * Time.deltaTime;
 
-            Vector2 input = ControlsEnabled && joystick != null ? joystick.Direction : Vector2.zero;
+            Vector2 input;
+            if (CinematicControl) input = cineInput;
+            else input = ControlsEnabled && joystick != null ? joystick.Direction : Vector2.zero;
 #if UNITY_EDITOR || UNITY_STANDALONE
             if (input == Vector2.zero && ControlsEnabled)
             {

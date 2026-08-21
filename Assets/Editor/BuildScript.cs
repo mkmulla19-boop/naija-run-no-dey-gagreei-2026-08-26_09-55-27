@@ -32,7 +32,9 @@ public static class BuildScript
             OlomuSceneBuilder.BuildVillageScene();
         }
 
-        PlayerSettings.companyName = "Olomu";
+        OlomuBranding.Apply();
+
+        PlayerSettings.companyName = "Mkmulla Game Studio";
         PlayerSettings.productName = "Olomu Survival";
         PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, "com.olomu.survival");
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARMv7 | AndroidArchitecture.ARM64;
