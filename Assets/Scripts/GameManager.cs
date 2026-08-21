@@ -43,6 +43,17 @@ namespace Olomu.Systems
             Debug.Log(loaded ? "Olomu: save loaded." : "Olomu: new game.");
         }
 
+        private void OnApplicationPause(bool paused)
+        {
+            if (!paused && (pausePanelSafe == null || !pausePanelSafe.activeSelf))
+                Time.timeScale = 1f;
+        }
+
+        private GameObject pausePanelSafe
+        {
+            get { var h = FindFirstObjectByType<MobileHUD>(); return h != null ? h.pausePanel : null; }
+        }
+
         private IEnumerator AutosaveLoop()
         {
             while (true)

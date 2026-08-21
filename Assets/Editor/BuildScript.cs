@@ -36,6 +36,7 @@ public static class BuildScript
 
         PlayerSettings.companyName = "Mkmulla Game Studio";
         PlayerSettings.productName = "Olomu Survival";
+        PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
         PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, "com.olomu.survival");
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARMv7 | AndroidArchitecture.ARM64;
         PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.Mono2x);

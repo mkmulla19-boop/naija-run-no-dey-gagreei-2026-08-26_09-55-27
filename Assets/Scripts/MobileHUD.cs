@@ -81,6 +81,9 @@ namespace Olomu.Systems
 
         private void Update()
         {
+            if (pausePanel != null && !pausePanel.activeSelf && Time.timeScale == 0f)
+                Time.timeScale = 1f;
+
             if (survival != null)
             {
                 hungerFill.fillAmount = survival.Hunger / survival.maxHunger;

@@ -689,8 +689,8 @@ public static class OlomuSceneBuilder
         subtitle.fontStyle = FontStyle.Italic;
 
         var skipBtn = MakeButton(hud.transform, "SkipButton", rrect, new Color(0, 0, 0, 0.55f),
-            new Vector2(1, 1), new Vector2(170, 70), "SKIP", 28, out _);
-        skipBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(-110, -50);
+            new Vector2(0.5f, 0), new Vector2(320, 96), "SKIP  >", 34, out _);
+        skipBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 150);
 
         var director = hud.gameObject.AddComponent<CinematicDirector>();
         director.cineCam = cineCam;
