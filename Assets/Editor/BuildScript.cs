@@ -27,12 +27,10 @@ public static class BuildScript
             EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
         }
 
-        var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
-        var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        cube.name = "OlomuTestCube";
-        cube.transform.position = new Vector3(0f, 1f, 0f);
-        Directory.CreateDirectory("Assets/Scenes");
-        EditorSceneManager.SaveScene(scene, "Assets/Scenes/Boot.unity");
+        if (!File.Exists("Assets/Scenes/OlomuVillage.unity"))
+        {
+            OlomuSceneBuilder.BuildVillageScene();
+        }
 
         PlayerSettings.companyName = "Olomu";
         PlayerSettings.productName = "Olomu Survival";
@@ -42,7 +40,7 @@ public static class BuildScript
 
         var options = new BuildPlayerOptions
         {
-            scenes = new[] { "Assets/Scenes/Boot.unity" },
+            scenes = new[] { "Assets/Scenes/OlomuVillage.unity" },
             locationPathName = "Builds/OlomuSurvival-test.apk",
             target = BuildTarget.Android,
             options = BuildOptions.Development

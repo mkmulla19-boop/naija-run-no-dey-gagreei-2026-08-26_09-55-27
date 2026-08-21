@@ -4,6 +4,9 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/OlomuVillage.unity
+    guid: 3707a16b6dbe8ae4db5c93efce737a86
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0
