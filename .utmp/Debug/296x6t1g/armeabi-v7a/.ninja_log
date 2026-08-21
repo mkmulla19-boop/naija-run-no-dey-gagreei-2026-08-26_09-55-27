@@ -1,0 +1,12 @@
+# ninja log v5
+17	109628	8089937860867037	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	d4e43db5ff6b49be
+119	109936	8089937861107466	GameActivity/CMakeFiles/game.dir/UGAInputKeyEvent.cpp.o	746b426c27d39a77
+256	109981	8089937861167523	GameActivity/CMakeFiles/game.dir/UGAEntry.cpp.o	397899db49cbfcce
+43	110102	8089937864310727	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	6b53ca118ba0d4e
+317	110734	8089937870766505	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	42183f5db23ffd0f
+82	110747	8089937871809252	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	6a0fa2d7254a7f73
+110018	115784	8089937922601080	FramePacing/CMakeFiles/swappywrapper.dir/UnitySwappyWrapper.cpp.o	d645c14b9de07356
+109683	119119	8089937956156891	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	d9d8df2c98d12a10
+109936	124852	8089938011643867	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	e9d5bbf7b81658f4
+115846	124967	8089938012307562	C:/Users/ASUS PC/Documents/Unity Projects/Olomu Survival/Library/Bee/Android/Prj/Mono2x/Gradle/unityLibrary/build/intermediates/cxx/Debug/296x6t1g/obj/armeabi-v7a/libswappywrapper.so	f68fdaa4423a41ef
+124858	126619	8089938032312426	C:/Users/ASUS PC/Documents/Unity Projects/Olomu Survival/Library/Bee/Android/Prj/Mono2x/Gradle/unityLibrary/build/intermediates/cxx/Debug/296x6t1g/obj/armeabi-v7a/libgame.so	eaa514179c13bf14
