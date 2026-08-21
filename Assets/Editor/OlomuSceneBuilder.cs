@@ -11,7 +11,7 @@ using Olomu.Systems;
 public static class OlomuSceneBuilder
 {
     const string ScenePath = "Assets/Scenes/OlomuVillage.unity";
-    const string FbxPath = "Assets/Art/Character/olomu_player_male.fbx";
+    const string FbxPath = "Assets/Art/Character/olomu_ai_warrior.fbx";
     const string CirclePng = "Assets/Art/UI/circle.png";
     const string RoundRectPng = "Assets/Art/UI/roundrect.png";
     const string ControllerPath = "Assets/Art/Character/OlomuController.controller";
