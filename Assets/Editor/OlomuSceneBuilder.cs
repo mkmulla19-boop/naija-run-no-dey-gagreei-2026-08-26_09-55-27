@@ -185,6 +185,22 @@ public static class OlomuSceneBuilder
         return AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Art/World/" + rel);
     }
 
+    static void AddBoundsCollider(GameObject root)
+    {
+        var renderers = root.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0) return;
+        Bounds b = renderers[0].bounds;
+        foreach (var r in renderers) b.Encapsulate(r.bounds);
+        var box = root.AddComponent<BoxCollider>();
+        box.center = root.transform.InverseTransformPoint(b.center);
+        Vector3 sizeWorld = b.size;
+        Vector3 scale = root.transform.lossyScale;
+        box.size = new Vector3(
+            sizeWorld.x / Mathf.Max(Mathf.Abs(scale.x), 0.001f),
+            sizeWorld.y / Mathf.Max(Mathf.Abs(scale.y), 0.001f),
+            sizeWorld.z / Mathf.Max(Mathf.Abs(scale.z), 0.001f));
+    }
+
     static void BuildHut(Vector3 pos, float rotDeg)
     {
         var prefab = LoadWorldPrefab("hut.fbx");
@@ -196,6 +212,7 @@ public static class OlomuSceneBuilder
             hut.transform.rotation = Quaternion.Euler(0, rotDeg, 0);
             float s = Random.Range(0.92f, 1.15f);
             hut.transform.localScale = new Vector3(s, s, s);
+            AddBoundsCollider(hut);
             return;
         }
         var fallback = new GameObject("Hut");
@@ -350,6 +367,7 @@ public static class OlomuSceneBuilder
                 float s = Random.Range(0.5f, 1.6f);
                 rock.transform.localScale = new Vector3(s, s * Random.Range(0.6f, 1.1f), s);
                 rock.transform.rotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
+                AddBoundsCollider(rock);
             }
             else
             {
