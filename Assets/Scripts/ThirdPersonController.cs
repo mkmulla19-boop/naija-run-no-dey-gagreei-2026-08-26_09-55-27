@@ -18,7 +18,7 @@ namespace Olomu.Systems
         public float cameraSmoothness = 8.0f;
         public float minPitch = -55f;
         public float maxPitch = 25f;
-        public float cameraDistance = 3.8f;
+        public float cameraDistance = 4.5f;
         public float headHeight = 1.6f;
 
         [Header("Refs")]
@@ -78,9 +78,32 @@ namespace Olomu.Systems
             cam.fieldOfView = 55f;
 
             targetYaw = transform.eulerAngles.y;
-            targetPitch = 12f;
+            targetPitch = 15f;
             currentPitch = targetPitch;
             ApplyLookRotation();
+        }
+
+        private void Start()
+        {
+            PlaceOnGround();
+        }
+
+        public void PlaceOnGround()
+        {
+            if (cc == null) cc = GetComponent<CharacterController>();
+            Vector3 origin = transform.position + Vector3.up * 2f;
+            if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 15f))
+            {
+                float targetY = hit.point.y + 0.05f;
+                Teleport(new Vector3(transform.position.x, targetY, transform.position.z));
+                verticalVel = -1.5f;
+                Debug.Log($"[OLU] grounded at {transform.position} on {hit.collider.name}");
+            }
+            else
+            {
+                Debug.LogWarning($"[OLU] no ground below {transform.position}");
+            }
+            cc.Move(Vector3.zero);
         }
 
         private void Update()
@@ -89,6 +112,10 @@ namespace Olomu.Systems
             SmoothLook();
             Move();
             UpdateAnimation();
+
+            if (Time.frameCount % 180 == 0)
+                Debug.Log($"[OLU] pos={transform.position} grounded={cc.isGrounded} " +
+                          $"speed={horizontalVel.magnitude:F1} controls={ControlsEnabled} cine={CinematicControl}");
         }
 
         private void HandleLookTouches()
@@ -146,6 +173,14 @@ namespace Olomu.Systems
 
         private void Move()
         {
+            if (transform.position.y < -5f)
+            {
+                Debug.LogWarning("[OLU] fell out of world, rescuing");
+                Teleport(new Vector3(0f, 1.05f, 8f));
+                PlaceOnGround();
+                return;
+            }
+
             bool grounded = cc.isGrounded;
             if (grounded && verticalVel < 0f) verticalVel = -1.5f;
 
@@ -208,6 +243,7 @@ namespace Olomu.Systems
             cc.enabled = false;
             transform.position = pos;
             cc.enabled = true;
+            cc.Move(Vector3.zero);
         }
     }
 }
