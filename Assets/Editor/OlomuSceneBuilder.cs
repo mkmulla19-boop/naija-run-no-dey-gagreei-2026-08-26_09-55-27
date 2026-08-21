@@ -11,7 +11,7 @@ using Olomu.Systems;
 public static class OlomuSceneBuilder
 {
     const string ScenePath = "Assets/Scenes/OlomuVillage.unity";
-    const string FbxPath = "Assets/Art/Character/olomu_player.fbx";
+    const string FbxPath = "Assets/Art/Character/olomu_player_male.fbx";
     const string CirclePng = "Assets/Art/UI/circle.png";
     const string RoundRectPng = "Assets/Art/UI/roundrect.png";
     const string ControllerPath = "Assets/Art/Character/OlomuController.controller";
@@ -73,6 +73,7 @@ public static class OlomuSceneBuilder
         var playerCtl = player.GetComponent<ThirdPersonController>();
         var gameCam = playerCtl.GetComponentInChildren<Camera>(true);
         if (gameCam != null) gameCam.gameObject.SetActive(false);
+        playerCtl.joystick = hud.GetComponent<VirtualJoystick>();
 
         var director = BuildCinematicUI(cineCam, player, playerCtl,
             hud.GetComponent<MobileHUD>(), audio,
@@ -83,6 +84,9 @@ public static class OlomuSceneBuilder
 
         var gmGo = new GameObject("GameManager");
         gmGo.AddComponent<GameManager>();
+
+        var promoGo = new GameObject("PromoCapture");
+        promoGo.AddComponent<PromoCapture>();
 
         EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -151,8 +155,8 @@ public static class OlomuSceneBuilder
 
     static void BuildGround()
     {
-        Prim(PrimitiveType.Plane, "Ground", Mat(new Color(0.36f, 0.51f, 0.27f)), new Vector3(0, 0, 0), new Vector3(50, 1, 50));
-        Prim(PrimitiveType.Plane, "ClearingDirt", Mat(new Color(0.62f, 0.48f, 0.3f)), new Vector3(0, 0.02f, 0), new Vector3(4.4f, 1, 4.4f));
+        Prim(PrimitiveType.Plane, "Ground", Mat(new Color(0x6B / 255f, 0x5A / 255f, 0x3E / 255f)), new Vector3(0, 0, 0), new Vector3(50, 1, 50));
+        Prim(PrimitiveType.Plane, "ClearingDirt", Mat(new Color(0x8A / 255f, 0x73 / 255f, 0x4F / 255f)), new Vector3(0, 0.02f, 0), new Vector3(4.4f, 1, 4.4f));
     }
 
     static void BuildRiver()
@@ -176,19 +180,27 @@ public static class OlomuSceneBuilder
         Prim(PrimitiveType.Plane, "PathNorth", Mat(new Color(0.66f, 0.53f, 0.34f)), new Vector3(-4f, 0.04f, 14f), new Vector3(0.22f, 1, 3.0f));
     }
 
+    static GameObject LoadWorldPrefab(string rel)
+    {
+        return AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Art/World/" + rel);
+    }
+
     static void BuildHut(Vector3 pos, float rotDeg)
     {
-        var hut = new GameObject("Hut");
-        hut.transform.position = pos;
-        hut.transform.rotation = Quaternion.Euler(0, rotDeg, 0);
-
-        var wallMat = Mat(new Color(0.55f, 0.41f, 0.26f));
-        var roofMat = Mat(new Color(0.72f, 0.57f, 0.25f));
-        var doorMat = Mat(new Color(0.22f, 0.15f, 0.09f));
-
-        Prim(PrimitiveType.Cylinder, "Wall", wallMat, pos + Vector3.up * 1.1f, new Vector3(4.4f, 1.1f, 4.4f), hut.transform);
-        Prim(PrimitiveType.Sphere, "Roof", roofMat, pos + Vector3.up * 2.35f, new Vector3(6.0f, 2.6f, 6.0f), hut.transform);
-        Prim(PrimitiveType.Cube, "Door", doorMat, pos + hut.transform.rotation * new Vector3(0, 0.85f, 2.16f), new Vector3(1.1f, 1.7f, 0.18f), hut.transform);
+        var prefab = LoadWorldPrefab("hut.fbx");
+        if (prefab != null)
+        {
+            var hut = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            hut.name = "Hut";
+            hut.transform.position = pos;
+            hut.transform.rotation = Quaternion.Euler(0, rotDeg, 0);
+            float s = Random.Range(0.92f, 1.15f);
+            hut.transform.localScale = new Vector3(s, s, s);
+            return;
+        }
+        var fallback = new GameObject("Hut");
+        fallback.transform.position = pos;
+        Prim(PrimitiveType.Cylinder, "Wall", Mat(new Color(0.55f, 0.41f, 0.26f)), pos + Vector3.up * 1.1f, new Vector3(4.4f, 1.1f, 4.4f), fallback.transform);
     }
 
     static void BuildVillage()
@@ -252,17 +264,23 @@ public static class OlomuSceneBuilder
 
     static void BuildPalm(Vector3 pos)
     {
-        var tree = new GameObject("Palm");
-        tree.transform.position = pos;
-        float h = Random.Range(3.2f, 4.6f);
-        var trunk = Prim(PrimitiveType.Cylinder, "Trunk", Mat(new Color(0.42f, 0.3f, 0.17f)), pos + Vector3.up * h / 2f, new Vector3(0.32f, h / 2f, 0.32f), tree.transform);
-        trunk.transform.rotation = Quaternion.Euler(Random.Range(-6f, 6f), 0, Random.Range(-6f, 6f));
-        var top = pos + Vector3.up * h;
-        for (int i = 0; i < 6; i++)
+        var prefab = LoadWorldPrefab("palm.fbx");
+        GameObject tree;
+        float h;
+        if (prefab != null)
         {
-            float a = i * 60f + Random.Range(-12f, 12f);
-            var frond = Prim(PrimitiveType.Cube, "Frond", Mat(new Color(0.23f, 0.5f, 0.2f)), top + Quaternion.Euler(0, a, 0) * new Vector3(0.9f, -0.05f, 0), new Vector3(1.9f, 0.07f, 0.5f), tree.transform);
-            frond.transform.rotation = Quaternion.Euler(0, a, -18f);
+            tree = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            tree.name = "Palm";
+            tree.transform.position = pos;
+            h = 6.5f;
+        }
+        else
+        {
+            tree = new GameObject("Palm");
+            tree.transform.position = pos;
+            h = Random.Range(3.2f, 4.6f);
+            var trunk = Prim(PrimitiveType.Cylinder, "Trunk", Mat(new Color(0.42f, 0.3f, 0.17f)), pos + Vector3.up * h / 2f, new Vector3(0.32f, h / 2f, 0.32f), tree.transform);
+            trunk.transform.rotation = Quaternion.Euler(Random.Range(-6f, 6f), 0, Random.Range(-6f, 6f));
         }
         var col = tree.AddComponent<CapsuleCollider>();
         col.radius = 0.3f;
@@ -317,14 +335,27 @@ public static class OlomuSceneBuilder
             placed++;
         }
         placed = 0; guard = 0;
+        var rockPrefab = LoadWorldPrefab("rock.fbx");
         while (placed < 22 && guard++ < 400)
         {
             Vector2 r = Random.insideUnitCircle * 65f;
             Vector3 p = new Vector3(r.x, 0, r.y);
             if (p.magnitude < 15f) continue;
             if (p.x < -21f && p.x > -39f) continue;
-            Prim(PrimitiveType.Sphere, "Rock", Mat(new Color(0.47f, 0.46f, 0.43f)), p + Vector3.up * 0.2f,
-                new Vector3(Random.Range(0.5f, 1.6f), Random.Range(0.35f, 0.9f), Random.Range(0.5f, 1.6f)));
+            if (rockPrefab != null)
+            {
+                var rock = (GameObject)PrefabUtility.InstantiatePrefab(rockPrefab);
+                rock.name = "Rock";
+                rock.transform.position = p;
+                float s = Random.Range(0.5f, 1.6f);
+                rock.transform.localScale = new Vector3(s, s * Random.Range(0.6f, 1.1f), s);
+                rock.transform.rotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
+            }
+            else
+            {
+                Prim(PrimitiveType.Sphere, "Rock", Mat(new Color(0.47f, 0.46f, 0.43f)), p + Vector3.up * 0.2f,
+                    new Vector3(Random.Range(0.5f, 1.6f), Random.Range(0.35f, 0.9f), Random.Range(0.5f, 1.6f)));
+            }
             placed++;
         }
     }
@@ -518,6 +549,15 @@ public static class OlomuSceneBuilder
             var actor = go.AddComponent<CineActor>();
             actor.speed = 4.6f;
             actor.waypoints = new[] { paths[i][1], paths[i][2] };
+            var ai = go.AddComponent<EnemyAI>();
+            ai.enabled = false;
+            ai.health = 100f;
+            ai.attackDamage = 12f;
+            ai.attackCooldown = 1.15f;
+            ai.chaseSpeed = 5.9f;
+            ai.detectRadius = 16f;
+            ai.patrolRadius = 6f;
+            ai.lootItem = "hide";
             raiders[i] = actor;
         }
 

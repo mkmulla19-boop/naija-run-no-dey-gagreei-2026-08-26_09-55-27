@@ -144,6 +144,7 @@ namespace Olomu.Systems
                     Say("");
                     if (raiders != null && raiders.Length > 0 && raiders[0] != null)
                         raiders[0].gameObject.SetActive(false);
+                    ActivateInvasionWorld();
                     StartCoroutine(HandoffSequence());
                     break;
             }
@@ -285,6 +286,26 @@ namespace Olomu.Systems
             h.ShowToast("Gather wood and berries before night comes...");
         }
 
+        private bool invasionActive;
+
+        private void ActivateInvasionWorld()
+        {
+            if (invasionActive) return;
+            invasionActive = true;
+            if (sun != null) StartCoroutine(ShiftSun());
+            if (raiders == null) return;
+            foreach (var r in raiders)
+            {
+                if (r == null || !r.gameObject.activeSelf) continue;
+                var ai = r.GetComponent<EnemyAI>();
+                if (ai != null)
+                {
+                    r.enabled = false;
+                    ai.enabled = true;
+                }
+            }
+        }
+
         public void Skip()
         {
             StopAllCoroutines();
@@ -293,6 +314,7 @@ namespace Olomu.Systems
             EnterPhase(Phase.Escape);
             escapeIdx = escapePath.Length;
             playerController.SetCinematicInput(Vector2.zero);
+            ActivateInvasionWorld();
             EnterPhase(Phase.Handoff);
         }
 

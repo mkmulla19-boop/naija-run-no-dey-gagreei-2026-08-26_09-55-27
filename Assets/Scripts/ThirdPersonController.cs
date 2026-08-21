@@ -15,11 +15,11 @@ namespace Olomu.Systems
 
         [Header("Camera / Look")]
         public float touchSensitivity = 0.0055f;
-        public float cameraSmoothness = 12.0f;
+        public float cameraSmoothness = 8.0f;
         public float minPitch = -55f;
         public float maxPitch = 25f;
-        public float cameraDistance = 3.4f;
-        public float headHeight = 1.55f;
+        public float cameraDistance = 3.8f;
+        public float headHeight = 1.6f;
 
         [Header("Refs")]
         public VirtualJoystick joystick;
@@ -60,6 +60,7 @@ namespace Olomu.Systems
         {
             cc = GetComponent<CharacterController>();
             animator = GetComponentInChildren<Animator>();
+            if (joystick == null) joystick = FindFirstObjectByType<VirtualJoystick>();
 
             camPivot = new GameObject("CamPivot").transform;
             camPivot.SetParent(transform);
@@ -74,7 +75,7 @@ namespace Olomu.Systems
             camGo.transform.localPosition = new Vector3(0f, 0f, -cameraDistance);
             camGo.transform.localRotation = Quaternion.identity;
             cam.farClipPlane = 500f;
-            cam.fieldOfView = 60f;
+            cam.fieldOfView = 55f;
 
             targetYaw = transform.eulerAngles.y;
             targetPitch = 12f;

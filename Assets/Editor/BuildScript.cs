@@ -63,4 +63,32 @@ public static class BuildScript
             EditorApplication.Exit(1);
         }
     }
+
+    public static void BuildWindowsPromo()
+    {
+        if (!File.Exists("Assets/Scenes/OlomuVillage.unity"))
+        {
+            OlomuSceneBuilder.BuildVillageScene();
+        }
+
+        PlayerSettings.companyName = "Mkmulla Game Studio";
+        PlayerSettings.productName = "Olomu Survival";
+
+        var options = new BuildPlayerOptions
+        {
+            scenes = new[] { "Assets/Scenes/OlomuVillage.unity" },
+            locationPathName = "Builds/OlomuPromo/OlomuSurvival.exe",
+            target = BuildTarget.StandaloneWindows64,
+            options = BuildOptions.Development
+        };
+
+        BuildReport report = BuildPipeline.BuildPlayer(options);
+        if (report.summary.result == BuildResult.Succeeded)
+            Debug.Log("PROMO BUILD SUCCEEDED: " + report.summary.outputPath);
+        else
+        {
+            Debug.LogError("PROMO BUILD FAILED: " + report.summary.totalErrors);
+            EditorApplication.Exit(1);
+        }
+    }
 }
