@@ -1,54 +1,84 @@
 # OLOMU SURVIVAL — PROJECT BRAIN FILE
-_Last updated: night session, Aug 22 2026. Read this first._
+_Last updated: Aug 23 2026 (placement-fix session). Read this first — it is the handover document for any model/agent._
 
 ## WHAT THIS PROJECT IS
 Westland-Survival-style 3D third-person survival RPG set in Olomu, Delta State, Nigeria (Urhobo culture).
 Unity 6000.3.22f1, Built-in RP, Android-first (Redmi Note 11 Pro). Ported from frozen Godot reference.
 Owner: mkmulla19-boop (GitHub). Studio name: Mkmulla Game Studio.
 
-## KEY PATHS
-- Unity project: C:\Users\ASUS PC\Documents\Unity Projects\Olomu Survival
+## ⚠️ KEY PATHS (UPDATED AUG 23 — OLD PATHS ARE DEAD)
+- **Unity project ROOT: `C:\Users\ASUS PC\Documents\Olomu-Survival-Promo`** ← the folder itself IS the project (Assets/ProjectSettings/Library at root)
+- OLD path `Documents\Unity Projects\Olomu Survival` = DELETED. Do not reference.
 - GitHub repo: github.com/mkmulla19-boop/Olomu-Unity (public, master)
-- Design refs: Documents\Olomu Design References\ (+ Downloads\olomu idea.jpeg)
-- Character source GLB: Documents\Codex\2026-08-18\hey-codex\olomu-survival\assets\characters\olomu_player\
-- Promo videos: Documents\Olomu-Survival-Promo\
-- Promo frames: C:\ProgramData\olomu_promo
+- Design refs: `Documents\Olomu Design References\`, `Documents\Olomu-Reference\`
+- Grok patch zip: `Downloads\Olomu_Full_Setup.zip` (evaluated — see below)
+- Promo videos: inside project root (3 mp4 files, harmless to Unity)
+- D:\ drive = phone-style storage (Music/DCIM) — ZERO Unity content, never touch
+- OneDrive\Documents = 2 word docs only, irrelevant
+
+## 🔑 UNITY HUB REGISTRATION (solved Aug 23 — repeat if ever lost)
+Symptom: Hub shows empty project list / "open a project that has Unity" error.
+Root cause found: Hub's database table `projects` was EMPTY.
+Fix method:
+1. Close Hub fully (`Stop-Process -Name 'Unity Hub' -Force`)
+2. Use sqlite3 bundled with Unity:
+   `"C:\Program Files\Unity\Hub\Editor\6000.3.22f1\Editor\Data\PlaybackEngines\AndroidPlayer\SDK\platform-tools\sqlite3.exe"`
+3. DB: `C:\Users\ASUS PC\AppData\Roaming\UnityHub\hub.db`, schema:
+   `projects(path TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER NOT NULL)`
+4. INSERT row with minimal JSON `{"isFavorite":true,"lastOpened":<ms>,"name":"..."}` → on next launch Hub ACCEPTS and auto-enriches it (version, buildTarget Android, git info).
+5. PowerShell inline SQL mangles quotes — write .sql file and pipe: `Get-Content fix.sql -Raw | & sqlite3.exe hub.db`
+6. Known transient error when opening card mid-sync: `ERROR.EDITOR_ALREADY_IN_LIST` — full restart of Hub clears it.
+DB backup kept at: `Temp\opencode\hub_backup.db`
 
 ## COMMANDS THAT WORK
-- Unity batch: $args='-batchmode -quit -nographics -projectPath "C:\Users\ASUS PC\Documents\Unity Projects\Olomu Survival" -executeMethod BuildScript.BuildAndroidTest -logFile "C:\ProgramData\olomu-X.log"'; Start-Process "C:\Program Files\Unity\Hub\Editor\6000.3.22f1\Editor\Unity.exe" $args pattern (pre-quote args!)
-- BuildAndroidTest = scene auto-build if missing + branding + APK to Builds\OlomuSurvival-test.apk
-- BuildWindowsPromo = standalone exe for self-recording promo capture
-- Delete Assets\Scenes\OlomuVillage.unity to force scene rebuild (all world gen is code: Assets\Editor\OlomuSceneBuilder.cs)
-- adb: %LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe (device VWJZX4PRU86549WK; flaky — retry, check USB debugging + File Transfer mode)
-- ffmpeg (NO png/aac decoders!): "C:\Program Files\BlueStacks_nxt\ffmpeg.exe" — use BMP inputs, libopenh264 encoder, wav audio
-- Blender headless: "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -b --python script.py (EEVEE broken headless; use CYCLES CPU; numpy OK)
-- Gemini vision API WORKS with user key (model gemini-flash-latest ONLY; others 404). Key stored in chat history only — ask user.
-- Harness quirk: commands randomly fail with ChildProcess.kill — just retry same command.
+- Editor direct launch (bypasses Hub): `Start-Process "C:\Program Files\Unity\Hub\Editor\6000.3.22f1\Editor\Unity.exe" -ArgumentList '-projectPath','"C:\Users\ASUS PC\Documents\Olomu-Survival-Promo"'`
+- Batch build (when data allows): same exe with `-batchmode -quit -nographics -projectPath <above> -executeMethod BuildScript.BuildAndroidTest -logFile "C:\ProgramData\olomu-X.log"` (pre-quote args!)
+- Scene rebuild: menu **Olomu → Build Village Scene** (all world gen is code: `Assets\Editor\OlomuSceneBuilder.cs`). Delete `Assets\Scenes\OlomuVillage.unity` to force fresh rebuild.
+- adb (works): `"C:\Program Files\Unity\Hub\Editor\6000.3.22f1\Editor\Data\PlaybackEngines\AndroidPlayer\SDK\platform-tools\adb.exe"` device VWJZX4PRU86549WK; flaky — kill-server + retry; MIUI needs Install-via-USB permission.
+- Zip tool: `tar.exe -a -c -f out.zip -C parent foldername` (fast, handles GBs; used for 678MB full-project zip pushed to phone Documents).
+- Python: BROKEN on this machine (WindowsApps stub). Need SQL?→ Unity's sqlite3.exe. Need zip?→ tar.exe.
+- Harness quirk: commands randomly fail with ChildProcess.kill — retry the SAME command.
 
-## CURRENT STATE (all pushed to git cacff3a+)
-- PLAYABLE APK installed on phone. Cinematic entrance (Title→Establish→Life→Chaos→Father→Escape→Handoff) w/ original Afrobeats audio bed.
-- Combat: EnemyAI (patrol/chase/attack), player Health, ATTACK button, loot drops. Raiders convert from cinematic actors to live enemies at handoff OR skip.
-- World: Blender huts/palms/rocks FBX, earth palette per design brief, fog, warm sun.
-- Character v3: male warrior per forensic brief (1.8m, broad shoulders, cream tank #E8E0D5, red sash #A32D2D, cargo #5C5346, boots #3E2B1F, skin #6B3F2A, afro cap, backpack+bedroll+pouches, machete). PROCEDURAL textures (weave/canvas/silk/grain/skin/coil at 512px).
-- Mobile fixes: joystick wiring bug FIXED (was null on device), landscape lock, timeScale=0 freeze guard, SKIP moved bottom-center away from PAUSE.
-- Camera per Grok review: FOV 55, distance 3.8, damping 8. Canvas Scaler already ScaleWithScreenSize match 0.5.
+## SESSION LOG — AUG 23 2026 (placement surgery)
+User diagnosis (correct): game logic perfect, PLACEMENT MATH was the disease.
+Audit method: distance math between every actor spawn/waypoint vs structure footprints (hut r≈2.2–2.5m, fire stones r=1.4 no-collider, piles box/sphere ~0.75m).
 
-## KNOWN ISSUES / NEXT
-1. USER VERDICT PENDING: character still reads flat/mannequin — needs REAL mesh quality. Plan A: body reshape + 1024px PBR + normal maps in Blender. Plan B (better): Meshy.ai image-to-3D from concept photo → re-rig onto OlomuRig.
-2. Safe Area UI panel for notches (Grok item, not done).
-3. Promo re-capture after character+camera final. Pipeline proven: promo exe → PNG frames → BMP convert → ffmpeg mux bed.wav → endcard.bmp concat → 16:9 + 9:16 cuts.
-4. Gemini vision pass on design photos (503'd once, retry).
-5. Village life: villagers wander (SimpleNPC) but sparse; consider market props, fires, children NPCs later.
+Violations found & FIXED in `Assets\Editor\OlomuSceneBuilder.cs`:
+1. Father spawned INSIDE Hut#3: gap 0.5m (needed ~3.8m). FIX: spawn (-1.5,1.05,13.5), waypoints (-1,10.5)→(0.8,9.2) straight clear corridor.
+2. Raider cutscene mids passed through campfire flame (0.7m). FIX: all 5 mids rerouted to ≥2.9m ring around fire(1.5,1.5).
+3. Wilderness scatter had NO clearance check → trees/rocks could spawn on huts/paths/each other. FIX: new `SpotClear()` + `occupied` registry (huts/fire/piles self-register), 2.5m min gap, guards raised 800→2000 / 400→1200, path corridors excluded (river path z∈[0.2,3.8] x<-4... see SpotClear code).
+
+FIXED in same file:
+4. **Ground had NO collider** (Prim() strips colliders from ALL primitives incl. Ground!) → `PlaceOnGround()` raycast hit nothing = THE SINKING BUG ROOT CAUSE. FIX: `ground.AddComponent<MeshCollider>()` after Prim.
+
+FIXED in `Assets\Scripts\ThirdPersonController.cs` (Grok camera values ported):
+5. cameraDistance 4.5→**5.0**, headHeight 1.6→**1.45**, NEW shoulderOffsetX **0.45** applied to cam localPosition.x, cameraSmoothness 8→6 (Grok damping feel), FOV 55 unchanged.
+
+## GROK PACKAGE EVALUATION (Downloads\Olomu_Full_Setup.zip) — DO NOT IMPORT FILES AS-IS
+| File | Verdict |
+|---|---|
+| CameraSetupHelper.cs | ☠️ requires Cinemachine package (not installed) — would break compilation of ALL scripts. VALUES were ported manually instead. |
+| EnvironmentColliderFixer.cs | redundant + inferior (default-size boxes vs our AddBoundsCollider bounds-fit). Skip. |
+| SimpleInteract.cs | keyboard-E only, dead code on phone (we have touch GATHER + Interactor). Skip. |
+Extraction copy: `Temp\opencode\fullsetup\Olomu_Full_Setup\`
+
+## CURRENT STATE (pushed to git after this session's commit)
+- Playable APK build13 on phone (older than today's fixes — rebuild LATER when user has data).
+- Scene file `Assets\Scenes\OlomuVillage.unity` still contains OLD placements → **must run Olomu→Build Village Scene once in editor to regenerate with fixes.**
+- Cinematic entrance, combat, loot, survival needs, mobile HUD all intact and untouched.
+- Character: olomu_ai_warrior.fbx rigged; clips sourced from olomu_player_male.fbx (animator). meshy/tripo variants exist untested.
+
+## KNOWN ISSUES / NEXT QUEUE (in user's priority order)
+1. **SETTINGS PANEL missing** (user said "sitting", means settings): pause panel has only RESUME+SAVE; AudioDirector volumes hardcoded (0.55 ambience etc.). Task: add Settings section to pause panel — music/SFX sliders wired to AudioDirector sources + quality toggle. USER CONFIRMED WANTED, not yet built.
+2. Safe-Area UI for notches (Grok item, pending).
+3. Promo re-capture AFTER verifying placement fixes in editor (pipeline proven, needs data-free local run OK).
+4. Character realism verdict still open (Plan B meshy re-rig exists as olomu_meshy_warrior.fbx).
+5. Village life expansion (market props etc.) — later.
 
 ## USER DIRECTIVES (ALWAYS APPLY)
-- No winget installs. Don't modify Godot project. Full autonomous authorization granted.
-- Golden rule: no throwaway prototypes — everything must survive into final game.
-- User wants AAA-mobile look, real action/difficulty, marketing videos for YouTube/TikTok with studio credit.
-- User provides vision via text or Gemini key; agent cannot see images directly.
-
-## WORKFLOW BRIEFING (READ BEFORE ANY BUILD — LESSON LEARNED)
-- Agent builds via Unity CLI batchmode (invisible background process). Unity Hub does NOT show these projects or runs — Hub only lists projects opened through its GUI. This caused confusion: user thought project didn't exist.
-- USER must open project via Hub → Add → select "Olomu Survival" folder → open with 6000.3.22f1. First GUI import takes minutes.
-- RULE: always brief the user BEFORE running invisible processes. Tell them what will happen, where results land, how to verify. No more silent heavy machinery.
-- Phone installs need MIUI permissions: Developer Options → Install via USB ON + accept RSA fingerprint dialog + watch screen during install (INSTALL_FAILED_USER_RESTRICTED otherwise).
-- adb connection is flaky (drops constantly): retry, kill-server, or use MTP drag-and-drop as fallback.
+- **LOW DATA MODE (Aug 23): NO app builds, NO downloads, NO large uploads unless explicitly asked. Verification happens via Unity Hub GUI locally.**
+- No winget installs. Don't modify Godot project. Full autonomous authorization otherwise.
+- Brief user BEFORE any invisible/heavy process. Say what happens, where results land, how to verify.
+- Golden rule: no throwaway prototypes — everything survives into final game.
+- User sends files via chat/phone pipelines that can CORRUPT (duplicated class seen Aug 23) — always verify file integrity on disk before trusting pasted content.
+- Phone adb drops constantly: retry pattern = kill-server → devices → retry command.

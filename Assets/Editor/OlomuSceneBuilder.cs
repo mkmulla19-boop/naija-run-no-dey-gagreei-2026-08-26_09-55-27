@@ -19,6 +19,18 @@ public static class OlomuSceneBuilder
 
     static Font font;
 
+    static readonly List<Vector3> occupied = new List<Vector3>();
+
+    static bool SpotClear(Vector3 p)
+    {
+        foreach (var q in occupied)
+            if ((q - p).sqrMagnitude < 6.25f) return false;
+        if (Mathf.Abs(p.z - 2f) < 1.8f && p.x < 4f && p.x > -31f) return false;
+        if (Mathf.Abs(p.x - 2f) < 1.8f && p.z < 2f && p.z > -30f) return false;
+        if (Mathf.Abs(p.x + 4f) < 1.7f && p.z > -1f && p.z < 29f) return false;
+        return true;
+    }
+
     [MenuItem("Olomu/Build Village Scene")]
     public static void BuildVillageScene()
     {
@@ -156,7 +168,8 @@ public static class OlomuSceneBuilder
 
     static void BuildGround()
     {
-        Prim(PrimitiveType.Plane, "Ground", Mat(new Color(0x6B / 255f, 0x5A / 255f, 0x3E / 255f)), new Vector3(0, 0, 0), new Vector3(50, 1, 50));
+        var ground = Prim(PrimitiveType.Plane, "Ground", Mat(new Color(0x6B / 255f, 0x5A / 255f, 0x3E / 255f)), new Vector3(0, 0, 0), new Vector3(50, 1, 50));
+        ground.AddComponent<MeshCollider>();
         Prim(PrimitiveType.Plane, "ClearingDirt", Mat(new Color(0x8A / 255f, 0x73 / 255f, 0x4F / 255f)), new Vector3(0, 0.02f, 0), new Vector3(4.4f, 1, 4.4f));
     }
 
@@ -231,10 +244,14 @@ public static class OlomuSceneBuilder
             new Vector3(-14f, 0, 8f)
         };
         for (int i = 0; i < hutSpots.Length; i++)
+        {
+            occupied.Add(hutSpots[i]);
             BuildHut(hutSpots[i], Random.Range(0f, 360f));
+        }
 
         var fire = new GameObject("Campfire");
         fire.transform.position = new Vector3(1.5f, 0, 1.5f);
+        occupied.Add(fire.transform.position);
         Prim(PrimitiveType.Cylinder, "Stones", Mat(new Color(0.45f, 0.43f, 0.4f)), fire.transform.position + Vector3.up * 0.08f, new Vector3(1.4f, 0.08f, 1.4f), fire.transform);
         Prim(PrimitiveType.Cylinder, "Logs", Mat(new Color(0.4f, 0.27f, 0.14f)), fire.transform.position + Vector3.up * 0.16f, new Vector3(0.7f, 0.08f, 0.7f), fire.transform);
         var flame = Prim(PrimitiveType.Sphere, "Flame", Mat(new Color(1f, 0.55f, 0.1f)), fire.transform.position + Vector3.up * 0.45f, new Vector3(0.5f, 0.8f, 0.5f), fire.transform);
@@ -248,6 +265,7 @@ public static class OlomuSceneBuilder
 
     static void AddWoodPile(Vector3 pos)
     {
+        occupied.Add(pos);
         var pile = new GameObject("WoodPile");
         pile.transform.position = pos;
         var mat = Mat(new Color(0.44f, 0.3f, 0.16f));
@@ -265,6 +283,7 @@ public static class OlomuSceneBuilder
 
     static void AddStonePile(Vector3 pos)
     {
+        occupied.Add(pos);
         var pile = new GameObject("StonePile");
         pile.transform.position = pos;
         var mat = Mat(new Color(0.49f, 0.48f, 0.45f));
@@ -333,33 +352,38 @@ public static class OlomuSceneBuilder
     static void BuildWilderness()
     {
         int placed = 0, guard = 0;
-        while (placed < 55 && guard++ < 800)
+        while (placed < 55 && guard++ < 2000)
         {
             Vector2 r = Random.insideUnitCircle * 70f;
             Vector3 p = new Vector3(r.x, 0, r.y);
             if (p.magnitude < 16f) continue;
             if (p.x < -21f && p.x > -39f) continue;
+            if (!SpotClear(p)) continue;
             BuildPalm(p);
+            occupied.Add(p);
             placed++;
         }
         placed = 0; guard = 0;
-        while (placed < 18 && guard++ < 400)
+        while (placed < 18 && guard++ < 1200)
         {
             Vector2 r = Random.insideUnitCircle * 55f;
             Vector3 p = new Vector3(r.x, 0, r.y);
             if (p.magnitude < 14f) continue;
             if (p.x < -21f && p.x > -39f) continue;
+            if (!SpotClear(p)) continue;
             BuildBush(p);
+            occupied.Add(p);
             placed++;
         }
         placed = 0; guard = 0;
         var rockPrefab = LoadWorldPrefab("rock.fbx");
-        while (placed < 22 && guard++ < 400)
+        while (placed < 22 && guard++ < 1200)
         {
             Vector2 r = Random.insideUnitCircle * 65f;
             Vector3 p = new Vector3(r.x, 0, r.y);
             if (p.magnitude < 15f) continue;
             if (p.x < -21f && p.x > -39f) continue;
+            if (!SpotClear(p)) continue;
             if (rockPrefab != null)
             {
                 var rock = (GameObject)PrefabUtility.InstantiatePrefab(rockPrefab);
@@ -375,6 +399,7 @@ public static class OlomuSceneBuilder
                 Prim(PrimitiveType.Sphere, "Rock", Mat(new Color(0.47f, 0.46f, 0.43f)), p + Vector3.up * 0.2f,
                     new Vector3(Random.Range(0.5f, 1.6f), Random.Range(0.35f, 0.9f), Random.Range(0.5f, 1.6f)));
             }
+            occupied.Add(p);
             placed++;
         }
     }
@@ -528,7 +553,7 @@ public static class OlomuSceneBuilder
     {
         var fatherGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         fatherGo.name = "Father";
-        fatherGo.transform.position = new Vector3(-4f, 1.05f, 11.5f);
+        fatherGo.transform.position = new Vector3(-1.5f, 1.05f, 13.5f);
         fatherGo.transform.localScale = new Vector3(0.85f, 1.1f, 0.85f);
         fatherGo.GetComponent<Renderer>().sharedMaterial = Mat(new Color(0.35f, 0.24f, 0.15f));
         var fcc = fatherGo.AddComponent<CharacterController>();
@@ -537,18 +562,18 @@ public static class OlomuSceneBuilder
         father.speed = 2.4f;
         father.waypoints = new[]
         {
-            new Vector3(-2.5f, 1.05f, 10f),
+            new Vector3(-1.0f, 1.05f, 10.5f),
             new Vector3(0.8f, 1.05f, 9.2f)
         };
 
         var raiders = new CineActor[5];
         Vector3[][] paths =
         {
-            new[] { new Vector3(-14f, 1.05f, -12f), new Vector3(2f, 1.05f, 2f), new Vector3(16f, 1.05f, 10f) },
-            new[] { new Vector3(16f, 1.05f, -10f), new Vector3(0f, 1.05f, -1f), new Vector3(-14f, 1.05f, 9f) },
-            new[] { new Vector3(-13f, 1.05f, 6f), new Vector3(3f, 1.05f, 4f), new Vector3(15f, 1.05f, -6f) },
-            new[] { new Vector3(13f, 1.05f, 7f), new Vector3(-2f, 1.05f, 3f), new Vector3(-16f, 1.05f, -8f) },
-            new[] { new Vector3(4f, 1.05f, -14f), new Vector3(1f, 1.05f, 1f), new Vector3(-12f, 1.05f, 12f) }
+            new[] { new Vector3(-14f, 1.05f, -12f), new Vector3(3.5f, 1.05f, -1.5f), new Vector3(16f, 1.05f, 10f) },
+            new[] { new Vector3(16f, 1.05f, -10f), new Vector3(-1.6f, 1.05f, -1.3f), new Vector3(-14f, 1.05f, 9f) },
+            new[] { new Vector3(-13f, 1.05f, 6f), new Vector3(4.6f, 1.05f, 3.6f), new Vector3(15f, 1.05f, -6f) },
+            new[] { new Vector3(13f, 1.05f, 7f), new Vector3(-2.2f, 1.05f, 4.6f), new Vector3(-16f, 1.05f, -8f) },
+            new[] { new Vector3(4f, 1.05f, -14f), new Vector3(-1.2f, 1.05f, 0.4f), new Vector3(-12f, 1.05f, 12f) }
         };
         var raidColors = new[]
         {

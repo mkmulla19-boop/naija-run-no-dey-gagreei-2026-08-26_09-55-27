@@ -15,11 +15,12 @@ namespace Olomu.Systems
 
         [Header("Camera / Look")]
         public float touchSensitivity = 0.0055f;
-        public float cameraSmoothness = 8.0f;
+        public float cameraSmoothness = 6.0f;
         public float minPitch = -55f;
         public float maxPitch = 25f;
-        public float cameraDistance = 4.5f;
-        public float headHeight = 1.6f;
+        public float cameraDistance = 5.0f;
+        public float headHeight = 1.45f;
+        public float shoulderOffsetX = 0.45f;
 
         [Header("Refs")]
         public VirtualJoystick joystick;
@@ -72,7 +73,7 @@ namespace Olomu.Systems
             cam = camGo.AddComponent<Camera>();
             camGo.AddComponent<AudioListener>();
             camGo.transform.SetParent(camPivot);
-            camGo.transform.localPosition = new Vector3(0f, 0f, -cameraDistance);
+            camGo.transform.localPosition = new Vector3(shoulderOffsetX, 0f, -cameraDistance);
             camGo.transform.localRotation = Quaternion.identity;
             cam.farClipPlane = 500f;
             cam.fieldOfView = 55f;
