@@ -12,6 +12,7 @@ public static class OlomuSceneBuilder
 {
     const string ScenePath = "Assets/Scenes/OlomuVillage.unity";
     const string FbxPath = "Assets/Art/Character/olomu_ai_warrior.fbx";
+    const string ClipPath = "Assets/Art/Character/olomu_player_male.fbx";
     const string CirclePng = "Assets/Art/UI/circle.png";
     const string RoundRectPng = "Assets/Art/UI/roundrect.png";
     const string ControllerPath = "Assets/Art/Character/OlomuController.controller";
@@ -380,7 +381,7 @@ public static class OlomuSceneBuilder
 
     static AnimatorController BuildAnimator()
     {
-        var clips = AssetDatabase.LoadAllAssetsAtPath(FbxPath).OfType<AnimationClip>()
+        var clips = AssetDatabase.LoadAllAssetsAtPath(ClipPath).OfType<AnimationClip>()
             .Where(c => !c.name.StartsWith("__")).ToList();
 
         AnimationClip idle = clips.FirstOrDefault(c => c.name.ToLower().Contains("idle"));
