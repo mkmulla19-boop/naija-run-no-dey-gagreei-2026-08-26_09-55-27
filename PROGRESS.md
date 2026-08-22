@@ -45,3 +45,10 @@ Owner: mkmulla19-boop (GitHub). Studio name: Mkmulla Game Studio.
 - Golden rule: no throwaway prototypes — everything must survive into final game.
 - User wants AAA-mobile look, real action/difficulty, marketing videos for YouTube/TikTok with studio credit.
 - User provides vision via text or Gemini key; agent cannot see images directly.
+
+## WORKFLOW BRIEFING (READ BEFORE ANY BUILD — LESSON LEARNED)
+- Agent builds via Unity CLI batchmode (invisible background process). Unity Hub does NOT show these projects or runs — Hub only lists projects opened through its GUI. This caused confusion: user thought project didn't exist.
+- USER must open project via Hub → Add → select "Olomu Survival" folder → open with 6000.3.22f1. First GUI import takes minutes.
+- RULE: always brief the user BEFORE running invisible processes. Tell them what will happen, where results land, how to verify. No more silent heavy machinery.
+- Phone installs need MIUI permissions: Developer Options → Install via USB ON + accept RSA fingerprint dialog + watch screen during install (INSTALL_FAILED_USER_RESTRICTED otherwise).
+- adb connection is flaky (drops constantly): retry, kill-server, or use MTP drag-and-drop as fallback.
