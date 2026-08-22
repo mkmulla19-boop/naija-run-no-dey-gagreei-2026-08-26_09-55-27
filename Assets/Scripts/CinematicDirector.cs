@@ -240,7 +240,9 @@ namespace Olomu.Systems
 
         private IEnumerator HandoffSequence()
         {
-            yield return new WaitForSeconds(0.2f);
+            Time.timeScale = 1f;
+            float warmup = 0f;
+            while (warmup < 0.2f) { warmup += Time.unscaledDeltaTime; yield return null; }
 
             var gameCam = playerController != null
                 ? playerController.GetComponentInChildren<Camera>(true)
