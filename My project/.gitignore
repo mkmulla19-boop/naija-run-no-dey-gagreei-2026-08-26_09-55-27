@@ -1,0 +1,29 @@
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/*.csproj
+/*.sln
+/*.slnx
+/*.user
+/*.userprefs
+/*.pidb
+/*.booproj
+/*.svd
+/.vs/
+.DS_Store
+Thumbs.db
+
+# Unity generated state and caches
+/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+/[Aa]ssets/[Ss]tate[Cc]ache/
+/[Aa]ssets/[Aa]sset[Ss]tore[Tt]ools/
+/[Aa]ssets/[Aa]sset[Ss]tore[Tt]ools/[Bb]uild/*
+
+# Crash reports and local machine files
+sysinfo.txt
+*.stacktrace
+*.stacktrace.*

@@ -28,7 +28,15 @@ namespace Olomu.Systems
         public GameObject pausePanel;
         public Button resumeButton;
         public Button saveButton;
+        public Button settingsButton;
         public Text statsText;
+
+        [Header("Settings Panel")]
+        public GameObject settingsPanel;
+        public Slider masterSlider;
+        public Slider musicSlider;
+        public Slider sfxSlider;
+        public Button settingsBackButton;
 
         public GameObject[] cinematicHidden;
 
@@ -44,12 +52,30 @@ namespace Olomu.Systems
         private Interactor interactor;
         private SaveLoad saveLoad;
         private Health health;
+        private AudioDirector audioDirector;
         private float toastTimer;
         private bool dead;
 
+        private void ApplySafeArea()
+        {
+            var rectTransform = GetComponent<RectTransform>();
+            if (rectTransform == null) return;
+            Rect safeArea = Screen.safeArea;
+            Vector2 minAnchor = safeArea.position;
+            Vector2 maxAnchor = minAnchor + safeArea.size;
+            minAnchor.x /= Screen.width;
+            minAnchor.y /= Screen.height;
+            maxAnchor.x /= Screen.width;
+            maxAnchor.y /= Screen.height;
+            rectTransform.anchorMin = minAnchor;
+            rectTransform.anchorMax = maxAnchor;
+        }
+
         private void Start()
         {
+            ApplySafeArea();
             player = FindFirstObjectByType<ThirdPersonController>();
+            audioDirector = FindFirstObjectByType<AudioDirector>();
             if (player != null)
             {
                 survival = player.GetComponent<SurvivalNeeds>();
@@ -67,7 +93,27 @@ namespace Olomu.Systems
             resumeButton.onClick.AddListener(OnResume);
             saveButton.onClick.AddListener(OnSave);
 
-            pausePanel.SetActive(false);
+            if (settingsButton != null) settingsButton.onClick.AddListener(OnOpenSettings);
+            if (settingsBackButton != null) settingsBackButton.onClick.AddListener(OnCloseSettings);
+
+            if (masterSlider != null)
+            {
+                masterSlider.value = audioDirector != null ? audioDirector.GetMasterVolume() : 1f;
+                masterSlider.onValueChanged.AddListener(v => audioDirector?.SetMasterVolume(v));
+            }
+            if (musicSlider != null)
+            {
+                musicSlider.value = audioDirector != null ? audioDirector.GetMusicVolume() : 0.85f;
+                musicSlider.onValueChanged.AddListener(v => audioDirector?.SetMusicVolume(v));
+            }
+            if (sfxSlider != null)
+            {
+                sfxSlider.value = audioDirector != null ? audioDirector.GetSfxVolume() : 1f;
+                sfxSlider.onValueChanged.AddListener(v => audioDirector?.SetSfxVolume(v));
+            }
+
+            if (pausePanel != null) pausePanel.SetActive(false);
+            if (settingsPanel != null) settingsPanel.SetActive(false);
 
             if (survival != null) survival.PlayerDied += OnPlayerDied;
             if (health != null)
@@ -79,8 +125,18 @@ namespace Olomu.Systems
             RefreshInventory();
         }
 
+        private Rect lastSafeArea;
+
         private void Update()
         {
+            if (Screen.safeArea != lastSafeArea)
+            {
+                lastSafeArea = Screen.safeArea;
+                ApplySafeArea();
+            }
+
+            HandleDesktopHotkeys();
+
             if (pausePanel != null && !pausePanel.activeSelf && Time.timeScale == 0f)
                 Time.timeScale = 1f;
 
@@ -97,8 +153,13 @@ namespace Olomu.Systems
             {
                 if (interactor.CurrentEnemy != null)
                 {
+#if UNITY_EDITOR || UNITY_STANDALONE
+                    promptText.text = "A raider blocks your path! [Press E / Click to Attack]";
+                    interactLabel.text = "ATTACK [E]";
+#else
                     promptText.text = "A raider blocks your path!";
                     interactLabel.text = "ATTACK";
+#endif
                     interactLabel.color = new Color(1f, 0.35f, 0.25f);
                     interactButton.interactable = true;
                     return;
@@ -106,14 +167,23 @@ namespace Olomu.Systems
                 interactLabel.color = Color.white;
                 if (interactor.CurrentTarget != null)
                 {
+#if UNITY_EDITOR || UNITY_STANDALONE
+                    promptText.text = "Gather " + interactor.CurrentTarget.DisplayName + " [Press E]";
+                    interactLabel.text = "GATHER [E]";
+#else
                     promptText.text = "Gather " + interactor.CurrentTarget.DisplayName;
                     interactLabel.text = "GATHER";
+#endif
                     interactButton.interactable = true;
                 }
                 else
                 {
                     promptText.text = "";
+#if UNITY_EDITOR || UNITY_STANDALONE
+                    interactLabel.text = "INTERACT [E]";
+#else
                     interactLabel.text = "INTERACT";
+#endif
                     interactButton.interactable = interactor.CurrentDrinkSpot != null;
                 }
             }
@@ -123,6 +193,22 @@ namespace Olomu.Systems
                 toastTimer -= Time.deltaTime;
                 if (toastTimer <= 0f) toastText.text = "";
             }
+        }
+
+        private void HandleDesktopHotkeys()
+        {
+#if UNITY_EDITOR || UNITY_STANDALONE || UNITY_WEBGL
+            if (Input.GetKeyDown(KeyCode.Space)) OnJump();
+            if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.F)) OnInteract();
+            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.H)) OnEat();
+            if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.J)) OnDrink();
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P))
+            {
+                if (settingsPanel != null && settingsPanel.activeSelf) OnCloseSettings();
+                else if (pausePanel != null && pausePanel.activeSelf) OnResume();
+                else OnPause();
+            }
+#endif
         }
 
         private void OnJump() => player?.RequestJump();
@@ -188,8 +274,21 @@ namespace Olomu.Systems
 
         private void OnResume()
         {
-            pausePanel.SetActive(false);
+            if (pausePanel != null) pausePanel.SetActive(false);
+            if (settingsPanel != null) settingsPanel.SetActive(false);
             Time.timeScale = 1f;
+        }
+
+        private void OnOpenSettings()
+        {
+            if (pausePanel != null) pausePanel.SetActive(false);
+            if (settingsPanel != null) settingsPanel.SetActive(true);
+        }
+
+        private void OnCloseSettings()
+        {
+            if (settingsPanel != null) settingsPanel.SetActive(false);
+            if (pausePanel != null) pausePanel.SetActive(true);
         }
 
         private void OnSave()

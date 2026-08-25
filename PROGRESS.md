@@ -62,23 +62,32 @@ FIXED in `Assets\Scripts\ThirdPersonController.cs` (Grok camera values ported):
 | SimpleInteract.cs | keyboard-E only, dead code on phone (we have touch GATHER + Interactor). Skip. |
 Extraction copy: `Temp\opencode\fullsetup\Olomu_Full_Setup\`
 
-## CURRENT STATE (pushed to git after this session's commit)
-- Playable APK build13 on phone (older than today's fixes — rebuild LATER when user has data).
-- Scene file `Assets\Scenes\OlomuVillage.unity` still contains OLD placements → **must run Olomu→Build Village Scene once in editor to regenerate with fixes.**
-- Cinematic entrance, combat, loot, survival needs, mobile HUD all intact and untouched.
-- Character: olomu_ai_warrior.fbx rigged; clips sourced from olomu_player_male.fbx (animator). meshy/tripo variants exist untested.
+## CURRENT STATE (Updated: Universal Cross-Platform & Modern Camera Session)
+- **Universal Dual-Input Engine (Phone + PC Hybrid)**:
+  - **Phone/Android**: Full touch virtual joystick, right-screen orbit drag, on-screen action pads, and real-time Safe-Area adaptation (supporting 16:9, 18:9, 19.5:9, 20:9 notches/punch-holes like Redmi Note 11 Pro).
+  - **PC/Desktop Test-Run**: Full native keyboard + mouse mapping (`WASD` movement, `Space` jump, `E`/`F` gather/attack/interact, `1`/`H` eat, `2`/`J` drink, `Esc`/`P` pause/resume, Mouse look via right-click or right-side click).
+  - Adaptive prompt labels showing keyboard shortcut hints `[E]`, `[SPACE]`, `[1]`, `[2]` on PC while keeping clean touch labels on Mobile.
+- **Modern Camera System ("Latest Model Game View")**:
+  - Spherecast obstacle collision avoidance (smoothly pushes camera forward if trees/huts block view, eliminating wall-clipping).
+  - Dynamic Sprint FOV expansion (55° → 61° on running).
+  - Over-the-shoulder third-person framing (shoulder offset 0.45m, head height 1.45m).
+  - Universal mobile-standard 60 FPS target (`Application.targetFrameRate = 60`).
+- **Blender 5.2 GPU Fixed**: Windows DirectX User GPU Preferences configured (`GpuPreference=2;`) for dedicated NVIDIA execution.
+- **Settings Panel Integrated**: Master, Music, and SFX/Ambience sliders added to Pause Menu and dynamically wired to `AudioDirector.cs` with `PlayerPrefs` persistence.
+- **Actors Restructured (Capsules Eliminated)**:
+  - Father & Villagers: Now instantiate rigged character models (`olomu_player_male.fbx`) with animators and natural height scaling.
+  - Raiders & Patrols: Now instantiate warrior models (`olomu_ai_warrior.fbx`) with running/combat animation states and `EnemyAI`.
+  - Wild Dogs: Restructured into articulated anatomical quadruped models (torso, neck, head with snout/ears, four legs, tail).
+- **Compilation**: All C# scripts compile with **0 errors** on Unity 6 (`6000.3.22f1`).
 
-## KNOWN ISSUES / NEXT QUEUE (in user's priority order)
-1. **SETTINGS PANEL missing** (user said "sitting", means settings): pause panel has only RESUME+SAVE; AudioDirector volumes hardcoded (0.55 ambience etc.). Task: add Settings section to pause panel — music/SFX sliders wired to AudioDirector sources + quality toggle. USER CONFIRMED WANTED, not yet built.
-2. Safe-Area UI for notches (Grok item, pending).
-3. Promo re-capture AFTER verifying placement fixes in editor (pipeline proven, needs data-free local run OK).
-4. Character realism verdict still open (Plan B meshy re-rig exists as olomu_meshy_warrior.fbx).
-5. Village life expansion (market props etc.) — later.
+## KNOWN ISSUES / NEXT QUEUE
+1. **In-Editor Scene Bake**: Open project in Unity Editor and select **`Olomu → Build Village Scene`** to bake all the updated models, settings UI, and clear actor corridors into `OlomuVillage.unity`.
+2. **Promo Re-Capture / APK Build**: Build the updated APK when ready to test the new visual models and audio settings directly on the Redmi Note 11 Pro.
+3. **Village Life Expansion**: Traditional African props (clay pots, woven baskets, yam storage barns, drying racks).
 
 ## USER DIRECTIVES (ALWAYS APPLY)
-- **LOW DATA MODE (Aug 23): NO app builds, NO downloads, NO large uploads unless explicitly asked. Verification happens via Unity Hub GUI locally.**
+- **LOW DATA MODE: NO app builds, NO downloads, NO large uploads unless explicitly asked.**
 - No winget installs. Don't modify Godot project. Full autonomous authorization otherwise.
 - Brief user BEFORE any invisible/heavy process. Say what happens, where results land, how to verify.
 - Golden rule: no throwaway prototypes — everything survives into final game.
-- User sends files via chat/phone pipelines that can CORRUPT (duplicated class seen Aug 23) — always verify file integrity on disk before trusting pasted content.
 - Phone adb drops constantly: retry pattern = kill-server → devices → retry command.

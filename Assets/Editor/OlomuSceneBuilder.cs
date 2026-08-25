@@ -12,6 +12,7 @@ public static class OlomuSceneBuilder
 {
     const string ScenePath = "Assets/Scenes/OlomuVillage.unity";
     const string FbxPath = "Assets/Art/Character/olomu_ai_warrior.fbx";
+    const string PlayerFbxPath = "Assets/Art/Character/olomu_player_male.fbx";
     const string ClipPath = "Assets/Art/Character/olomu_player_male.fbx";
     const string CirclePng = "Assets/Art/UI/circle.png";
     const string RoundRectPng = "Assets/Art/UI/roundrect.png";
@@ -73,6 +74,7 @@ public static class OlomuSceneBuilder
 
         var cineCamGo = new GameObject("CineCamera");
         var cineCam = cineCamGo.AddComponent<Camera>();
+        cineCamGo.AddComponent<AudioListener>();
         cineCam.fieldOfView = 55f;
         cineCam.farClipPlane = 500f;
         cineCamGo.tag = "Untagged";
@@ -101,10 +103,35 @@ public static class OlomuSceneBuilder
         var promoGo = new GameObject("PromoCapture");
         promoGo.AddComponent<PromoCapture>();
 
+        OrganizeHierarchy();
+
         EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
         AssetDatabase.SaveAssets();
         Debug.Log("OLOMU SCENE BUILT: " + ScenePath);
+    }
+
+    static void OrganizeHierarchy()
+    {
+        var groups = new Dictionary<string, string[]>
+        {
+            { "HUTS", new[] { "Hut" } },
+            { "RESOURCES", new[] { "WoodPile", "StonePile", "DrinkSpot" } },
+            { "PATHS", new[] { "Path", "Bridge", "Road" } },
+            { "CHARACTERS", new[] { "Player", "Father", "Raider", "RaiderPatrol", "NPC" } },
+            { "SYSTEMS", new[] { "GameManager", "SaveLoad", "AudioDirector", "PromoCapture", "CineCamera", "VillageFocus" } }
+        };
+
+        foreach (var group in groups)
+        {
+            var root = new GameObject("--- " + group.Key + " ---");
+            foreach (var go in Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None))
+            {
+                if (go == root || go.transform.parent != null) continue;
+                if (!group.Value.Any(prefix => go.name.StartsWith(prefix))) continue;
+                go.transform.SetParent(root.transform, true);
+            }
+        }
     }
 
     static void EnsureTexture(string path, Texture2D tex)
@@ -406,6 +433,9 @@ public static class OlomuSceneBuilder
 
     static AnimatorController BuildAnimator()
     {
+        var existing = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+        if (existing != null) return existing;
+
         var clips = AssetDatabase.LoadAllAssetsAtPath(ClipPath).OfType<AnimationClip>()
             .Where(c => !c.name.StartsWith("__")).ToList();
 
@@ -487,7 +517,17 @@ public static class OlomuSceneBuilder
         player.AddComponent<Interactor>();
         player.AddComponent<Health>();
 
-        var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(FbxPath);
+        var cameraPivot = new GameObject("CamPivot");
+        cameraPivot.transform.SetParent(player.transform, false);
+        cameraPivot.transform.localPosition = new Vector3(0f, 1.45f, 0f);
+        var cameraGo = new GameObject("MainCamera");
+        cameraGo.tag = "MainCamera";
+        cameraGo.transform.SetParent(cameraPivot.transform, false);
+        cameraGo.transform.localPosition = new Vector3(0.45f, 0f, -7.5f);
+        cameraGo.AddComponent<Camera>();
+        cameraGo.AddComponent<AudioListener>();
+
+        var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerFbxPath);
         if (fbx != null)
         {
             var model = (GameObject)PrefabUtility.InstantiatePrefab(fbx);
@@ -515,6 +555,7 @@ public static class OlomuSceneBuilder
             if (avatar != null) animator.avatar = avatar;
             animator.runtimeAnimatorController = BuildAnimator();
             animator.applyRootMotion = false;
+            ApplyCharacterPalette(model, new Color(0.48f, 0.22f, 0.11f), new Color(0.12f, 0.32f, 0.28f), new Color(0.85f, 0.58f, 0.18f));
         }
         else
         {
@@ -524,40 +565,123 @@ public static class OlomuSceneBuilder
         return player;
     }
 
+    static GameObject AttachCharacterModel(GameObject root, string fbxPath, RuntimeAnimatorController controller,
+        float targetHeight = 1.7f, Color skinColor = default, Color clothingColor = default, Color accentColor = default)
+    {
+        var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
+        if (fbx == null) fbx = AssetDatabase.LoadAssetAtPath<GameObject>(FbxPath);
+        if (fbx != null)
+        {
+            var model = (GameObject)PrefabUtility.InstantiatePrefab(fbx);
+            model.name = "Model";
+            model.transform.SetParent(root.transform, false);
+            model.transform.localRotation = Quaternion.Euler(0, 180f, 0);
+
+            var renderers = model.GetComponentsInChildren<Renderer>();
+            if (renderers.Length > 0)
+            {
+                Bounds b = renderers[0].bounds;
+                foreach (var r in renderers) b.Encapsulate(r.bounds);
+                float height = Mathf.Max(b.size.y, 0.01f);
+                float scale = targetHeight / height;
+                model.transform.localScale = Vector3.one * scale;
+
+                b = renderers[0].bounds;
+                foreach (var r in renderers) b.Encapsulate(r.bounds);
+                model.transform.localPosition += new Vector3(0f, root.transform.position.y - b.min.y, 0f);
+            }
+
+            var animator = model.GetComponent<Animator>();
+            if (animator == null) animator = model.AddComponent<Animator>();
+            var avatar = AssetDatabase.LoadAllAssetsAtPath(fbxPath).OfType<Avatar>().FirstOrDefault();
+            if (avatar == null) avatar = AssetDatabase.LoadAllAssetsAtPath(FbxPath).OfType<Avatar>().FirstOrDefault();
+            if (avatar != null) animator.avatar = avatar;
+            animator.runtimeAnimatorController = controller;
+            animator.applyRootMotion = false;
+            ApplyCharacterPalette(model, skinColor, clothingColor, accentColor);
+            return model;
+        }
+        return null;
+    }
+
+    static void ApplyCharacterPalette(GameObject model, Color skinColor, Color clothingColor, Color accentColor)
+    {
+        if (skinColor == default) skinColor = new Color(0.45f, 0.2f, 0.1f);
+        if (clothingColor == default) clothingColor = new Color(0.2f, 0.3f, 0.25f);
+        if (accentColor == default) accentColor = new Color(0.75f, 0.55f, 0.15f);
+
+        foreach (var renderer in model.GetComponentsInChildren<Renderer>())
+        {
+            var sourceMaterials = renderer.sharedMaterials;
+            var roleMaterials = new Material[sourceMaterials.Length];
+            for (int i = 0; i < sourceMaterials.Length; i++)
+            {
+                var source = sourceMaterials[i];
+                var material = source != null ? new Material(source) : new Material(Shader.Find("Standard"));
+                string partName = renderer.gameObject.name.ToLowerInvariant();
+                Color roleColor = partName.Contains("head") || partName.Contains("face") || partName.Contains("skin")
+                    ? skinColor
+                    : i > 0 || partName.Contains("cloth") || partName.Contains("shirt") || partName.Contains("armor")
+                        ? accentColor
+                        : clothingColor;
+                material.color = roleColor;
+                material.name = renderer.gameObject.name + "_RoleColor";
+                roleMaterials[i] = material;
+            }
+            renderer.sharedMaterials = roleMaterials;
+        }
+    }
+
+    static void BuildWildDogModel(GameObject root, Color bodyColor)
+    {
+        var mat = Mat(bodyColor, 0.1f);
+        Prim(PrimitiveType.Cube, "Torso", mat, root.transform.position + new Vector3(0, 0.45f, 0), new Vector3(0.45f, 0.4f, 0.85f), root.transform);
+        var neck = Prim(PrimitiveType.Cube, "Neck", mat, root.transform.position + new Vector3(0, 0.65f, 0.35f), new Vector3(0.35f, 0.35f, 0.4f), root.transform);
+        neck.transform.rotation = Quaternion.Euler(-30f, 0, 0);
+        Prim(PrimitiveType.Cube, "Head", mat, root.transform.position + new Vector3(0, 0.8f, 0.52f), new Vector3(0.28f, 0.28f, 0.35f), root.transform);
+        Prim(PrimitiveType.Cube, "Snout", Mat(new Color(0.12f, 0.1f, 0.08f)), root.transform.position + new Vector3(0, 0.74f, 0.72f), new Vector3(0.18f, 0.16f, 0.22f), root.transform);
+        Prim(PrimitiveType.Cube, "EarL", mat, root.transform.position + new Vector3(0.1f, 0.96f, 0.45f), new Vector3(0.08f, 0.18f, 0.08f), root.transform);
+        Prim(PrimitiveType.Cube, "EarR", mat, root.transform.position + new Vector3(-0.1f, 0.96f, 0.45f), new Vector3(0.08f, 0.18f, 0.08f), root.transform);
+        Prim(PrimitiveType.Cylinder, "LegFL", mat, root.transform.position + new Vector3(0.16f, 0.22f, 0.3f), new Vector3(0.1f, 0.22f, 0.1f), root.transform);
+        Prim(PrimitiveType.Cylinder, "LegFR", mat, root.transform.position + new Vector3(-0.16f, 0.22f, 0.3f), new Vector3(0.1f, 0.22f, 0.1f), root.transform);
+        Prim(PrimitiveType.Cylinder, "LegBL", mat, root.transform.position + new Vector3(0.16f, 0.22f, -0.3f), new Vector3(0.11f, 0.22f, 0.11f), root.transform);
+        Prim(PrimitiveType.Cylinder, "LegBR", mat, root.transform.position + new Vector3(-0.16f, 0.22f, -0.3f), new Vector3(0.11f, 0.22f, -0.11f), root.transform);
+        var tail = Prim(PrimitiveType.Cylinder, "Tail", mat, root.transform.position + new Vector3(0, 0.55f, -0.55f), new Vector3(0.06f, 0.25f, 0.06f), root.transform);
+        tail.transform.rotation = Quaternion.Euler(50f, 0, 0);
+    }
+
     static void BuildNPCs()
     {
+        var animController = BuildAnimator();
         var spots = new[]
         {
             new Vector3(5f, 1.0f, 2f), new Vector3(-6f, 1.0f, -3f), new Vector3(2f, 1.0f, -8f),
             new Vector3(-10f, 1.0f, 6f)
         };
-        var colors = new[]
-        {
-            new Color(0.78f, 0.6f, 0.42f), new Color(0.5f, 0.55f, 0.7f),
-            new Color(0.72f, 0.5f, 0.35f), new Color(0.6f, 0.65f, 0.45f)
-        };
         for (int i = 0; i < spots.Length; i++)
         {
-            var npc = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            npc.name = "Villager" + i;
+            var npc = new GameObject("Villager" + i);
             npc.transform.position = spots[i];
-            npc.transform.localScale = new Vector3(0.8f, 1.05f, 0.8f);
-            npc.GetComponent<Renderer>().sharedMaterial = Mat(colors[i]);
-            npc.AddComponent<CharacterController>();
-            npc.GetComponent<CharacterController>().height = 2f;
+            var cc = npc.AddComponent<CharacterController>();
+            cc.height = 1.75f;
+            cc.radius = 0.35f;
+            cc.center = new Vector3(0, 0.875f, 0);
             npc.AddComponent<SimpleNPC>();
+            AttachCharacterModel(npc, PlayerFbxPath, animController, Random.Range(1.65f, 1.8f),
+                new Color(0.42f, 0.18f, 0.1f), new Color(0.25f, 0.38f, 0.2f), new Color(0.76f, 0.55f, 0.18f));
         }
     }
 
     static System.Tuple<CineActor, CineActor[]> BuildStoryActors()
     {
-        var fatherGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        fatherGo.name = "Father";
+        var animController = BuildAnimator();
+
+        var fatherGo = new GameObject("Father");
         fatherGo.transform.position = new Vector3(-1.5f, 1.05f, 13.5f);
-        fatherGo.transform.localScale = new Vector3(0.85f, 1.1f, 0.85f);
-        fatherGo.GetComponent<Renderer>().sharedMaterial = Mat(new Color(0.35f, 0.24f, 0.15f));
         var fcc = fatherGo.AddComponent<CharacterController>();
-        fcc.height = 2.1f;
+        fcc.height = 1.8f;
+        fcc.radius = 0.38f;
+        fcc.center = new Vector3(0, 0.9f, 0);
         var father = fatherGo.AddComponent<CineActor>();
         father.speed = 2.4f;
         father.waypoints = new[]
@@ -565,6 +689,8 @@ public static class OlomuSceneBuilder
             new Vector3(-1.0f, 1.05f, 10.5f),
             new Vector3(0.8f, 1.05f, 9.2f)
         };
+        AttachCharacterModel(fatherGo, PlayerFbxPath, animController, 1.8f,
+            new Color(0.46f, 0.2f, 0.1f), new Color(0.12f, 0.2f, 0.42f), new Color(0.7f, 0.52f, 0.18f));
 
         var raiders = new CineActor[5];
         Vector3[][] paths =
@@ -575,21 +701,14 @@ public static class OlomuSceneBuilder
             new[] { new Vector3(13f, 1.05f, 7f), new Vector3(-2.2f, 1.05f, 4.6f), new Vector3(-16f, 1.05f, -8f) },
             new[] { new Vector3(4f, 1.05f, -14f), new Vector3(-1.2f, 1.05f, 0.4f), new Vector3(-12f, 1.05f, 12f) }
         };
-        var raidColors = new[]
-        {
-            new Color(0.25f, 0.18f, 0.18f), new Color(0.3f, 0.22f, 0.15f),
-            new Color(0.2f, 0.2f, 0.22f), new Color(0.28f, 0.18f, 0.2f),
-            new Color(0.22f, 0.25f, 0.18f)
-        };
         for (int i = 0; i < raiders.Length; i++)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            go.name = "Raider" + i;
+            var go = new GameObject("Raider" + i);
             go.transform.position = paths[i][0];
-            go.transform.localScale = new Vector3(0.85f, 1.08f, 0.85f);
-            go.GetComponent<Renderer>().sharedMaterial = Mat(raidColors[i]);
             var cc = go.AddComponent<CharacterController>();
-            cc.height = 2.1f;
+            cc.height = 1.8f;
+            cc.radius = 0.38f;
+            cc.center = new Vector3(0, 0.9f, 0);
             var actor = go.AddComponent<CineActor>();
             actor.speed = 4.6f;
             actor.waypoints = new[] { paths[i][1], paths[i][2] };
@@ -603,6 +722,10 @@ public static class OlomuSceneBuilder
             ai.patrolRadius = 6f;
             ai.lootItem = "hide";
             raiders[i] = actor;
+            AttachCharacterModel(go, FbxPath, animController, 1.75f,
+                new Color(0.25f, 0.1f, 0.06f), new Color(0.42f, 0.08f, 0.07f), new Color(0.78f, 0.72f, 0.26f));
+            var anim = go.GetComponentInChildren<Animator>();
+            if (anim != null) anim.SetInteger("AnimState", 2);
         }
 
         return new System.Tuple<CineActor, CineActor[]>(father, raiders);
@@ -610,10 +733,7 @@ public static class OlomuSceneBuilder
 
     static void BuildEnemies()
     {
-        var raidMats = new[]
-        {
-            new Color(0.42f, 0.2f, 0.18f), new Color(0.36f, 0.24f, 0.14f), new Color(0.3f, 0.26f, 0.22f)
-        };
+        var animController = BuildAnimator();
         Vector3[] raidSpots =
         {
             new Vector3(-6f, 1.05f, -38f),
@@ -622,13 +742,12 @@ public static class OlomuSceneBuilder
         };
         for (int i = 0; i < raidSpots.Length; i++)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            go.name = "RaiderPatrol" + i;
+            var go = new GameObject("RaiderPatrol" + i);
             go.transform.position = raidSpots[i];
-            go.transform.localScale = new Vector3(0.85f, 1.1f, 0.85f);
-            go.GetComponent<Renderer>().sharedMaterial = Mat(raidMats[i]);
             var cc = go.AddComponent<CharacterController>();
-            cc.height = 2.1f;
+            cc.height = 1.8f;
+            cc.radius = 0.38f;
+            cc.center = new Vector3(0, 0.9f, 0);
             var ai = go.AddComponent<EnemyAI>();
             ai.health = 100f;
             ai.attackDamage = 12f;
@@ -636,26 +755,26 @@ public static class OlomuSceneBuilder
             ai.detectRadius = 10f;
             ai.patrolRadius = 11f;
             ai.lootItem = "hide";
+            AttachCharacterModel(go, FbxPath, animController, 1.8f,
+                new Color(0.22f, 0.09f, 0.05f), new Color(0.3f, 0.08f, 0.12f), new Color(0.64f, 0.65f, 0.18f));
         }
 
-        var dogMat = Mat(new Color(0.23f, 0.19f, 0.16f));
+        var dogMat = new Color(0.32f, 0.22f, 0.15f);
         Vector3[] dogSpots =
         {
-            new Vector3(34f, 1.02f, 26f),
-            new Vector3(-40f, 1.02f, -20f),
-            new Vector3(28f, 1.02f, -46f),
-            new Vector3(-32f, 1.02f, 38f)
+            new Vector3(34f, 0f, 26f),
+            new Vector3(-40f, 0f, -20f),
+            new Vector3(28f, 0f, -46f),
+            new Vector3(-32f, 0f, 38f)
         };
         foreach (var spot in dogSpots)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            go.name = "WildDog";
+            var go = new GameObject("WildDog");
             go.transform.position = spot;
-            go.transform.localScale = new Vector3(0.55f, 0.5f, 0.95f);
-            go.GetComponent<Renderer>().sharedMaterial = dogMat;
             var cc = go.AddComponent<CharacterController>();
-            cc.height = 1.1f;
-            cc.radius = 0.35f;
+            cc.height = 0.85f;
+            cc.radius = 0.4f;
+            cc.center = new Vector3(0, 0.45f, 0);
             var ai = go.AddComponent<EnemyAI>();
             ai.health = 55f;
             ai.attackDamage = 9f;
@@ -666,6 +785,7 @@ public static class OlomuSceneBuilder
             ai.patrolRadius = 14f;
             ai.lootItem = "meat";
             ai.lootAmount = 2;
+            BuildWildDogModel(go, dogMat);
         }
     }
 
@@ -735,6 +855,12 @@ public static class OlomuSceneBuilder
         var skipBtn = MakeButton(hud.transform, "SkipButton", rrect, new Color(0, 0, 0, 0.55f),
             new Vector2(0.5f, 0), new Vector2(320, 96), "SKIP  >", 34, out _);
         skipBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 150);
+        skipBtn.gameObject.SetActive(false);
+        blackGo.SetActive(false);
+        titleStudio.gameObject.SetActive(false);
+        titleMain.gameObject.SetActive(false);
+        letterTopGo.SetActive(false);
+        letterBotGo.SetActive(false);
 
         var director = hud.gameObject.AddComponent<CinematicDirector>();
         director.cineCam = cineCam;
@@ -845,6 +971,70 @@ public static class OlomuSceneBuilder
         return btn;
     }
 
+    static Slider MakeSlider(Transform parent, string name, Sprite rrect, Sprite circle, float defaultVal, Vector2 anchor, Vector2 pos, Vector2 size)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var rect = go.AddComponent<RectTransform>();
+        rect.anchorMin = anchor;
+        rect.anchorMax = anchor;
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = pos;
+        rect.sizeDelta = size;
+
+        var bgImg = MakeImage(go.transform, "Background", rrect, new Color(0.18f, 0.18f, 0.22f, 0.9f), new Vector2(0.5f, 0.5f), size);
+        bgImg.rectTransform.anchorMin = Vector2.zero;
+        bgImg.rectTransform.anchorMax = Vector2.one;
+        bgImg.rectTransform.offsetMin = Vector2.zero;
+        bgImg.rectTransform.offsetMax = Vector2.zero;
+
+        var fillArea = new GameObject("Fill Area");
+        fillArea.transform.SetParent(go.transform, false);
+        var faRect = fillArea.AddComponent<RectTransform>();
+        faRect.anchorMin = new Vector2(0, 0.25f);
+        faRect.anchorMax = new Vector2(1, 0.75f);
+        faRect.offsetMin = new Vector2(4, 0);
+        faRect.offsetMax = new Vector2(-4, 0);
+
+        var fill = new GameObject("Fill");
+        fill.transform.SetParent(fillArea.transform, false);
+        var fillRect = fill.AddComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
+        fillRect.offsetMin = Vector2.zero;
+        fillRect.offsetMax = Vector2.zero;
+        var fillImg = fill.AddComponent<Image>();
+        fillImg.sprite = rrect;
+        fillImg.color = new Color(0.2f, 0.75f, 0.95f);
+
+        var handleArea = new GameObject("Handle Slide Area");
+        handleArea.transform.SetParent(go.transform, false);
+        var haRect = handleArea.AddComponent<RectTransform>();
+        haRect.anchorMin = Vector2.zero;
+        haRect.anchorMax = Vector2.one;
+        haRect.offsetMin = new Vector2(8, 0);
+        haRect.offsetMax = new Vector2(-8, 0);
+
+        var handle = new GameObject("Handle");
+        handle.transform.SetParent(handleArea.transform, false);
+        var handleRect = handle.AddComponent<RectTransform>();
+        handleRect.sizeDelta = new Vector2(28, 28);
+        var handleImg = handle.AddComponent<Image>();
+        handleImg.sprite = circle;
+        handleImg.color = Color.white;
+
+        var slider = go.AddComponent<Slider>();
+        slider.fillRect = fillRect;
+        slider.handleRect = handleRect;
+        slider.targetGraphic = handleImg;
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.value = defaultVal;
+
+        return slider;
+    }
+
     static GameObject BuildHUD(GameObject player)
     {
         var canvasGo = new GameObject("HUD");
@@ -941,12 +1131,38 @@ public static class OlomuSceneBuilder
         ppRect.offsetMax = Vector2.zero;
         var ppImg = pausePanel.AddComponent<Image>();
         ppImg.color = new Color(0, 0, 0, 0.82f);
-        MakeText(pausePanel.transform, "Title", "PAUSED", 64, Color.white, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-300, 180), new Vector2(300, 260), TextAnchor.MiddleCenter);
-        var statsText = MakeText(pausePanel.transform, "Stats", "", 30, new Color(0.9f, 0.9f, 0.9f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-350, 20), new Vector2(350, 160), TextAnchor.UpperCenter);
-        var resumeBtn = MakeButton(pausePanel.transform, "ResumeButton", rrect, new Color(0.2f, 0.6f, 0.3f), new Vector2(0.5f, 0.5f), new Vector2(340, 84), "RESUME", 32, out _);
-        resumeBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -120);
-        var saveBtn = MakeButton(pausePanel.transform, "SaveButton", rrect, new Color(0.25f, 0.45f, 0.7f), new Vector2(0.5f, 0.5f), new Vector2(340, 84), "SAVE GAME", 32, out _);
+        MakeText(pausePanel.transform, "Title", "PAUSED", 64, Color.white, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-300, 200), new Vector2(300, 280), TextAnchor.MiddleCenter);
+        var statsText = MakeText(pausePanel.transform, "Stats", "", 28, new Color(0.9f, 0.9f, 0.9f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-350, 60), new Vector2(350, 180), TextAnchor.UpperCenter);
+        var resumeBtn = MakeButton(pausePanel.transform, "ResumeButton", rrect, new Color(0.2f, 0.6f, 0.3f), new Vector2(0.5f, 0.5f), new Vector2(340, 72), "RESUME", 30, out _);
+        resumeBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -60);
+        var settingsBtn = MakeButton(pausePanel.transform, "SettingsButton", rrect, new Color(0.6f, 0.45f, 0.15f), new Vector2(0.5f, 0.5f), new Vector2(340, 72), "SETTINGS", 30, out _);
+        settingsBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -145);
+        var saveBtn = MakeButton(pausePanel.transform, "SaveButton", rrect, new Color(0.25f, 0.45f, 0.7f), new Vector2(0.5f, 0.5f), new Vector2(340, 72), "SAVE GAME", 30, out _);
         saveBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -230);
+
+        // Settings Panel
+        var settingsPanel = new GameObject("SettingsPanel");
+        settingsPanel.transform.SetParent(canvasGo.transform, false);
+        var spRect = settingsPanel.AddComponent<RectTransform>();
+        spRect.anchorMin = Vector2.zero;
+        spRect.anchorMax = Vector2.one;
+        spRect.offsetMin = Vector2.zero;
+        spRect.offsetMax = Vector2.zero;
+        var spImg = settingsPanel.AddComponent<Image>();
+        spImg.color = new Color(0.04f, 0.06f, 0.1f, 0.92f);
+        MakeText(settingsPanel.transform, "SettingsTitle", "AUDIO & SETTINGS", 56, new Color(0.95f, 0.8f, 0.35f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-350, 220), new Vector2(350, 300), TextAnchor.MiddleCenter);
+
+        MakeText(settingsPanel.transform, "MasterLabel", "MASTER VOLUME", 24, Color.white, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-220, 120), new Vector2(220, 160), TextAnchor.MiddleLeft);
+        var masterSlider = MakeSlider(settingsPanel.transform, "MasterSlider", rrect, circle, 1f, new Vector2(0.5f, 0.5f), new Vector2(0, 95), new Vector2(440, 32));
+
+        MakeText(settingsPanel.transform, "MusicLabel", "MUSIC VOLUME", 24, Color.white, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-220, 30), new Vector2(220, 70), TextAnchor.MiddleLeft);
+        var musicSlider = MakeSlider(settingsPanel.transform, "MusicSlider", rrect, circle, 0.85f, new Vector2(0.5f, 0.5f), new Vector2(0, 5), new Vector2(440, 32));
+
+        MakeText(settingsPanel.transform, "SfxLabel", "SFX & AMBIENCE", 24, Color.white, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-220, -60), new Vector2(220, -20), TextAnchor.MiddleLeft);
+        var sfxSlider = MakeSlider(settingsPanel.transform, "SfxSlider", rrect, circle, 1f, new Vector2(0.5f, 0.5f), new Vector2(0, -85), new Vector2(440, 32));
+
+        var backBtn = MakeButton(settingsPanel.transform, "BackButton", rrect, new Color(0.3f, 0.35f, 0.45f), new Vector2(0.5f, 0.5f), new Vector2(340, 72), "BACK TO MENU", 28, out _);
+        backBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -200);
 
         var hud = canvasGo.AddComponent<MobileHUD>();
         hud.hungerFill = hungerFill;
@@ -963,8 +1179,14 @@ public static class OlomuSceneBuilder
         hud.pauseButton = pauseBtn;
         hud.pausePanel = pausePanel;
         hud.resumeButton = resumeBtn;
+        hud.settingsButton = settingsBtn;
         hud.saveButton = saveBtn;
         hud.statsText = statsText;
+        hud.settingsPanel = settingsPanel;
+        hud.masterSlider = masterSlider;
+        hud.musicSlider = musicSlider;
+        hud.sfxSlider = sfxSlider;
+        hud.settingsBackButton = backBtn;
 
         return canvasGo;
     }

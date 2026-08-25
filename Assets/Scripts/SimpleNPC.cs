@@ -13,6 +13,7 @@ namespace Olomu.Systems
         private Vector3 target;
         private bool walking;
         private CharacterController cc;
+        private Animator animator;
         private float idleTimer;
 
         private void Awake()
@@ -20,10 +21,13 @@ namespace Olomu.Systems
             home = transform.position;
             target = home;
             cc = GetComponent<CharacterController>();
+            animator = GetComponentInChildren<Animator>();
         }
 
         private void Update()
         {
+            if (animator != null && animator.runtimeAnimatorController != null)
+                animator.SetInteger("AnimState", walking ? 1 : 0);
             if (walking)
             {
                 Vector3 toTarget = target - transform.position;

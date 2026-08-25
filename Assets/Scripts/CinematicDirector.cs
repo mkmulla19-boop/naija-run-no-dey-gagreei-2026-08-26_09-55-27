@@ -11,6 +11,7 @@ namespace Olomu.Systems
 
         [Header("Camera")]
         public Camera cineCam;
+        public bool playIntro = false;
 
         [Header("Targets")]
         public Transform villageFocus;
@@ -51,8 +52,60 @@ namespace Olomu.Systems
         private static readonly Vector3[] chaosCamFrom = { new Vector3(12f, 4.2f, 14f), new Vector3(-6f, 3.2f, 16f) };
         private static readonly Vector3[] estabCamFrom = { new Vector3(30f, 27f, -32f), new Vector3(15f, 18f, -17f) };
 
+        private Camera gameCam;
+
         private void Start()
         {
+            gameCam = playerController != null
+                ? playerController.GetComponentInChildren<Camera>(true)
+                : Camera.main;
+            EnsureActorAnimators();
+            if (gameCam != null) gameCam.gameObject.SetActive(true);
+
+            if (!playIntro)
+            {
+                if (cineCam != null) cineCam.gameObject.SetActive(false);
+                SetBlack(0f);
+                Letterbox(false);
+                if (blackOverlay != null) blackOverlay.gameObject.SetActive(false);
+                if (skipButton != null) skipButton.gameObject.SetActive(false);
+                if (titleStudio != null) titleStudio.gameObject.SetActive(false);
+                if (titleMain != null) titleMain.gameObject.SetActive(false);
+                if (hud != null) hud.SetCinematicMode(false);
+                if (playerController != null)
+                {
+                    playerController.ControlsEnabled = true;
+                    playerController.CinematicControl = false;
+                }
+                if (gameCam != null)
+                {
+                    gameCam.gameObject.SetActive(true);
+                    if (gameCam.GetComponent<AudioListener>() == null)
+                        gameCam.gameObject.AddComponent<AudioListener>();
+                }
+                if (audioDirector != null) audioDirector.StartMorning();
+                IsPlaying = false;
+                Current = Phase.Playing;
+                return;
+            }
+
+            if (cineCam == null)
+            {
+                IsPlaying = false;
+                Current = Phase.Playing;
+                if (hud != null) hud.SetCinematicMode(false);
+                if (playerController != null)
+                {
+                    playerController.ControlsEnabled = true;
+                    playerController.CinematicControl = false;
+                }
+                return;
+            }
+
+            if (cineCam.GetComponent<AudioListener>() == null)
+                cineCam.gameObject.AddComponent<AudioListener>();
+            cineCam.gameObject.SetActive(true);
+            if (gameCam != null) gameCam.gameObject.SetActive(false);
             if (sun != null)
             {
                 sunColorOrig = sun.color;
@@ -244,10 +297,12 @@ namespace Olomu.Systems
             float warmup = 0f;
             while (warmup < 0.2f) { warmup += Time.unscaledDeltaTime; yield return null; }
 
-            var gameCam = playerController != null
-                ? playerController.GetComponentInChildren<Camera>(true)
-                : null;
             if (gameCam == null) gameCam = Camera.main;
+            if (gameCam == null)
+            {
+                FinishHandoffWithoutCamera();
+                yield break;
+            }
             Vector3 p0 = cineCam.transform.position;
             Quaternion r0 = cineCam.transform.rotation;
 
@@ -275,6 +330,20 @@ namespace Olomu.Systems
             IsPlaying = false;
             Current = Phase.Playing;
             if (hud != null) StartCoroutine(TutorialToasts(hud));
+            Finished?.Invoke();
+        }
+
+        private void FinishHandoffWithoutCamera()
+        {
+            if (hud != null) hud.SetCinematicMode(false);
+            Letterbox(false);
+            if (playerController != null)
+            {
+                playerController.CinematicControl = false;
+                playerController.ControlsEnabled = true;
+            }
+            IsPlaying = false;
+            Current = Phase.Playing;
             Finished?.Invoke();
         }
 
@@ -315,7 +384,7 @@ namespace Olomu.Systems
             SetBlack(0f);
             EnterPhase(Phase.Escape);
             escapeIdx = escapePath.Length;
-            playerController.SetCinematicInput(Vector2.zero);
+            if (playerController != null) playerController.SetCinematicInput(Vector2.zero);
             ActivateInvasionWorld();
             EnterPhase(Phase.Handoff);
         }
@@ -329,14 +398,27 @@ namespace Olomu.Systems
 
         private void ApplyHandheld(Vector3 pos, Vector3 look, float shake)
         {
-            Vector3 jitter = shake > 0f
-                ? new Vector3(
-                    (Mathf.PerlinNoise(Time.unscaledTime * 9f, 0f) - 0.5f),
-                    (Mathf.PerlinNoise(0f, Time.unscaledTime * 9f) - 0.5f),
-                    0f) * shake
-                : Vector3.zero;
-            cineCam.transform.position = pos + jitter;
-            cineCam.transform.rotation = Quaternion.LookRotation((look + jitter) - pos, Vector3.up);
+            if (cineCam == null) return;
+            cineCam.transform.position = pos;
+            cineCam.transform.rotation = Quaternion.LookRotation(look - pos, Vector3.up);
+        }
+
+        private void EnsureActorAnimators()
+        {
+            var animators = FindObjectsByType<Animator>(FindObjectsSortMode.None);
+            RuntimeAnimatorController controller = null;
+            foreach (var candidate in animators)
+            {
+                if (candidate.runtimeAnimatorController != null)
+                {
+                    controller = candidate.runtimeAnimatorController;
+                    break;
+                }
+            }
+            if (controller == null) return;
+            foreach (var candidate in animators)
+                if (candidate.runtimeAnimatorController == null)
+                    candidate.runtimeAnimatorController = controller;
         }
 
         private static float Smooth(float x)

@@ -11,10 +11,12 @@ namespace Olomu.Systems
         private int index;
         private bool walking;
         private CharacterController cc;
+        private Animator animator;
 
         private void Awake()
         {
             cc = GetComponent<CharacterController>();
+            animator = GetComponentInChildren<Animator>();
             if (autoStart) Begin();
         }
 
@@ -36,6 +38,8 @@ namespace Olomu.Systems
 
         private void Update()
         {
+            if (animator != null && animator.runtimeAnimatorController != null)
+                animator.SetInteger("AnimState", walking ? 1 : 0);
             if (!walking || cc == null) return;
 
             Vector3 dir = FlatDir();
