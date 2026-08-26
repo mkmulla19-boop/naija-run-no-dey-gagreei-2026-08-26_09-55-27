@@ -1,20 +1,5 @@
 # Naija Run: No Dey Gagreei
 
-## Repository Map & Primary Source of Truth (CRITICAL FOR ALL AGENTS)
-
-To avoid any confusion between repositories, here is the official mapping:
-
-1. **PRIMARY LIVE REPOSITORY (ACTIVE DEVELOPMENT):**
-   - **GitHub:** `mkmulla19-boop/naija-run-no-dey-gagreei`
-   - **Branch:** `master`
-   - **Status:** Contains the 100% clean, verified Stage 1 procedural C# codebase (`Stage1Bootstrap.cs`, `PlayerController.cs`, `NaijaBackgroundFillerManager.cs`, etc.).
-   - **Target:** All active code additions and Stage 1 tasks belong exclusively here.
-
-2. **BACKUP SNAPSHOT REPOSITORY (DO NOT CONFUSE WITH ACTIVE):**
-   - **GitHub:** `mkmulla19-boop/naija-run-no-dey-gagreei-2026-08-26_09-55-27`
-   - **Status:** Workspace snapshot backup. It contains the merged project archive (including Olomu assets).
-   - **Rule:** Do NOT use this as the primary development target. Work only in `naija-run-no-dey-gagreei`.
-
 ## Handoff Status
 
 This is a Unity 6 URP project for a Nigeria-themed Temple Run-style endless runner. Stage 1 is still open. Stage 2 must not begin until the Stage 1 Play Mode checklist passes.
